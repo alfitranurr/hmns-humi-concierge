@@ -1,0 +1,13 @@
+{
+  "name": "humi-discord-relay",
+  "version": "1.0.0",
+  "description": "Bot kecil yang meneruskan pesan Discord ke n8n webhook untuk HUMI",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "axios": "^1.7.7"
+  }
+}
