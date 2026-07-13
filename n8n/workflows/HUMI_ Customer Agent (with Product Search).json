@@ -1,0 +1,519 @@
+{
+  "name": "HUMI: Customer Agent (with Product Search)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "humi-discord-in",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c98ba22a-ef66-45dc-b2f0-ae5c7cc607c6",
+      "name": "Webhook - Discord In",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        1840
+      ],
+      "webhookId": "humi-discord-in"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-admin-1",
+              "leftValue": "={{ $json.body.member_roles }} contains \"HMNS-Admin\"\nAND\n{{ $json.body.channel_name }} equals \"admin-hmns\"",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3d8a5960-f34d-41c1-9075-7139d862b9da",
+      "name": "IF - Is Admin?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2944,
+        1840
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Sudah aktif\nCabang TRUE (Is Admin) sekarang memanggil\nWorkflow 3: HUMI Admin Console sebagai sub-workflow.\nPENTING: setelah import Workflow 3, copy Workflow ID-nya\ndari URL browser, lalu paste ke node\n'Execute Workflow - Admin Console' di sini.",
+        "height": 220,
+        "width": 280
+      },
+      "id": "8a66a0cd-6608-4662-8f83-169e244d9f4f",
+      "name": "Catatan - Admin Branch",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2208,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Baru ditambahkan\nDua Qdrant Tool di bawah ini memberi AI Agent\nkemampuan 'mencari' produk dari knowledge base.\nAgent akan otomatis memilih tool yang relevan\nberdasarkan pertanyaan user + deskripsi tool.",
+        "height": 180,
+        "width": 320
+      },
+      "id": "97462fd1-8914-42aa-9b29-0e96f7fc1872",
+      "name": "Catatan - Qdrant Tools",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2208,
+        1952
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.content }}",
+        "options": {
+          "systemMessage": "Kamu adalah HUMI, AI Concierge untuk HMNS Perfume di Discord.\n\nGaya bicara: santai, ramah, pakai sapaan \"Kak\" dan istilah \"Humins\" sesekali, gunakan emoji secukupnya (jangan berlebihan).\n\nALAT YANG KAMU PUNYA:\n1. \"Cari Produk Parfum HMNS\" — gunakan ini kalau user tanya soal parfum, EDP/EDT, hair & body mist, body wash, atau produk perawatan tubuh HMNS (rekomendasi vibe/aroma, perbandingan produk, cek harga, cek notes aroma, dll).\n2. \"Cari Produk Home of Humans\" — gunakan ini kalau user tanya soal reed diffuser, pengharum ruangan, atau multipurpose spray untuk rumah.\n\nATURAN WAJIB SOAL PEMANGGILAN TOOL (PALING PENTING):\n- KAMU TIDAK BOLEH menulis kalimat seperti \"coba HUMI cek dulu ya\", \"HUMI cari dulu ya\", atau \"tunggu sebentar\" TANPA benar-benar memanggil tool pada giliran yang SAMA. Setiap kali kamu mengatakan akan mencari/mengecek sesuatu, kamu HARUS memanggil tool yang relevan SEBELUM mengirim balasan teks ke user, dalam satu kali proses berpikir yang sama.\n- JANGAN PERNAH menunda pencarian ke giliran berikutnya dengan menjanjikan akan cek nanti. Begitu kamu tahu user butuh rekomendasi/info produk, panggil tool LANGSUNG saat itu, baru susun jawabannya berdasarkan hasil tool.\n- Kalau topik user masih ambigu (misal \"pengharum ruangan\" bisa reed diffuser atau spray), kamu boleh tanya klarifikasi SATU kali, TAPI begitu user menjawab atau menegaskan (contoh: \"ok cek dong\", \"iya\", \"boleh\"), kamu WAJIB langsung memanggil tool pada balasan berikutnya — jangan tanya ulang, jangan diam, jangan kirim balasan kosong.\n- Jika kamu sudah memanggil tool dan hasilnya kosong/tidak relevan, sampaikan itu dengan jujur ke user, jangan biarkan balasan kosong.\n\nSelalu PANGGIL tool yang relevan dulu sebelum menjawab pertanyaan soal produk spesifik — JANGAN menjawab dari ingatan/asumsi sendiri soal nama produk, harga, atau notes aroma.\n\nATURAN PENTING LAINNYA:\n1. JANGAN PERNAH mengklaim hal sensitif (BPOM, halal, klaim medis/efek ke kulit) kecuali data itu benar-benar ada di hasil pencarian tool.\n2. JANGAN PERNAH menebak status pesanan, nomor resi, atau data pembayaran. Untuk pertanyaan ini, selalu jawab bahwa kamu akan teruskan ke tim CS manusia.\n3. Kalau hasil pencarian tool tidak relevan/tidak ditemukan, JANGAN mengarang jawaban. Akui dengan jujur dan tawarkan untuk diteruskan ke admin.\n4. Saat merekomendasikan produk, sertakan nama produk, harga, dan link_web dari hasil tool (kalau tersedia). WAJIB tulis link selalu dengan awalan lengkap \"https://\" (contoh: https://madeforhmns.com/products/nama-produk), JANGAN PERNAH menulis link tanpa https:// di depannya, karena link tanpa https:// tidak bisa diklik di Discord.\n5. Catatan stok: semua produk saat ini berstatus pengecekan terakhir \"Sold out\" di sistem — sampaikan ini dengan jujur ke user kalau relevan, jangan menjanjikan ketersediaan stok yang belum terverifikasi.\n6. Jawab dalam Bahasa Indonesia informal/santai, sesuai gaya HMNS.\n7. Jika pertanyaan di luar topik parfum/produk HMNS, arahkan kembali dengan sopan ke topik parfum.\n8. Balasanmu TIDAK BOLEH PERNAH kosong. Setiap giliran harus menghasilkan teks yang bisa dikirim ke user.\n9. JANGAN PERNAH menampilkan semua produk/katalog sekaligus dalam satu balasan. Maksimal tampilkan 4-5 produk per balasan, ringkas (nama, harga, 1 baris highlight notes, link). Kalau user minta \"semua katalog\" atau \"semua produk\", tampilkan 4-5 yang paling relevan dulu, lalu tawarkan: \"Mau HUMI lanjutin kategori lain atau lihat semua di link website?\" dan sertakan link koleksi resmi (https://madeforhmns.com/collections/hmns untuk parfum, https://madeforhmns.com/collections/home-of-humans untuk Home of Humans) sebagai opsi lihat lengkap."
+        }
+      },
+      "id": "165a8dc9-a2dd-4c59-a49f-521f5d0c83b6",
+      "name": "AI Agent - HUMI",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        3152,
+        1952
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "c05166a3-978a-4c36-8367-68e5fe5e369b",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2976,
+        2160
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "BIsQZwAIJWKSjKx2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.author_id }}",
+        "tableName": "humi_chat_memory",
+        "contextWindowLength": 10
+      },
+      "id": "4b79cf90-be39-4b34-9286-fc60e3e7eb50",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        3152,
+        2160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "qunLdRuScbJcnKnz",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "Cari_Produk_Parfum_HMNS",
+        "toolDescription": "Cari produk parfum, EDP, EDT, hair & body mist, atau body wash HMNS berdasarkan vibe/aroma, occasion, nama produk, atau kebutuhan user. Gunakan untuk pertanyaan rekomendasi parfum, perbandingan produk, cek harga, atau cek notes aroma.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "hmns_parfum",
+          "mode": "list",
+          "cachedResultName": "hmns_parfum"
+        },
+        "options": {}
+      },
+      "id": "8aaf0771-240d-4bd1-bf6a-bdf50468b57d",
+      "name": "Cari Produk Parfum HMNS",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.1,
+      "position": [
+        3344,
+        2224
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "9iZwHd09WREx5ih0",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "Cari_Produk_Home_of_Humans",
+        "toolDescription": "Cari produk reed diffuser atau multipurpose spray Home of Humans berdasarkan vibe/aroma, ruangan, atau kebutuhan user. Gunakan untuk pertanyaan soal pengharum ruangan/rumah, bukan parfum badan.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "hmns_home",
+          "mode": "list",
+          "cachedResultName": "hmns_home"
+        },
+        "options": {}
+      },
+      "id": "8c2b6d0f-64e2-49a1-96fd-88f7256d1aba",
+      "name": "Cari Produk Home of Humans",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.1,
+      "position": [
+        3632,
+        2224
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "9iZwHd09WREx5ih0",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "9284d0cc-4870-4814-ace8-b6aab1aea043",
+      "name": "Embeddings Gemini - Tool Parfum",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        3344,
+        2400
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "BIsQZwAIJWKSjKx2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "36cb51c9-7fd7-4aeb-951f-e4ee140e3562",
+      "name": "Embeddings Gemini - Tool Home",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        3632,
+        2400
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "BIsQZwAIJWKSjKx2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1519735726067945573",
+          "mode": "list",
+          "cachedResultName": "n8n Projects",
+          "cachedResultUrl": "https://discord.com/channels/1519735726067945573"
+        },
+        "channelId": {
+          "__rl": true,
+          "mode": "expression",
+          "value": "={{ $('Webhook - Discord In').item.json.body.channel_id }}"
+        },
+        "content": "={{ $json.output }}",
+        "options": {}
+      },
+      "id": "30c9a88b-6f99-4dbb-9fb1-8b5cb3d1dab8",
+      "name": "Discord - Send Reply",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        3776,
+        1952
+      ],
+      "webhookId": "f17a4eb0-f5fe-46d7-b311-2dcf35da3538",
+      "credentials": {
+        "discordBotApi": {
+          "id": "szUb2P4NmKmeJQjY",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {}
+      },
+      "id": "1fc93deb-0e6f-4088-8a09-3de912110520",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2944,
+        1488
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pecah pesan panjang menjadi beberapa bagian <= 1900 karakter (buffer dari limit 2000 Discord)\n// supaya tidak pernah kena \"Invalid Form Body\" karena terlalu panjang.\n\nconst MAX_LEN = 1900;\nconst items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  let text = item.json.output || '';\n\n  // Fallback kalau output kosong total\n  if (!text || text.trim() === '') {\n    text = 'Maaf Kak, HUMI lagi agak bingung jawabnya nih 😅 Boleh diulang pertanyaannya?';\n  }\n\n  if (text.length <= MAX_LEN) {\n    output.push({ json: { ...item.json, output: text, part: 1, totalParts: 1 } });\n    continue;\n  }\n\n  // Pecah berdasarkan paragraf/baris dulu (supaya tidak memotong di tengah kalimat/produk)\n  const lines = text.split('\\n');\n  const chunks = [];\n  let current = '';\n\n  for (const line of lines) {\n    if ((current + '\\n' + line).length > MAX_LEN) {\n      if (current) chunks.push(current.trim());\n      current = line;\n    } else {\n      current = current ? current + '\\n' + line : line;\n    }\n  }\n  if (current) chunks.push(current.trim());\n\n  // Kalau ada satu baris tunggal yang masih > MAX_LEN (jarang terjadi), potong paksa per karakter\n  const finalChunks = [];\n  for (const c of chunks) {\n    if (c.length <= MAX_LEN) {\n      finalChunks.push(c);\n    } else {\n      for (let i = 0; i < c.length; i += MAX_LEN) {\n        finalChunks.push(c.slice(i, i + MAX_LEN));\n      }\n    }\n  }\n\n  finalChunks.forEach((chunk, idx) => {\n    output.push({\n      json: {\n        ...item.json,\n        output: chunk,\n        part: idx + 1,\n        totalParts: finalChunks.length\n      }\n    });\n  });\n}\n\nreturn output;"
+      },
+      "id": "6378ac18-8e99-4bd6-9054-8a56212b898a",
+      "name": "Split Pesan Panjang",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        1952
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "jaIy7kPBGv9upFBX",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/jaIy7kPBGv9upFBX",
+          "cachedResultName": "HUMI: Admin Console"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "channel_id": "={{ $json.body.channel_id }}",
+            "content": "={{ $json.body.content }}",
+            "author_id": "={{ $json.body.author_id }}",
+            "author_username": "={{ $json.body.author_username }}",
+            "channel_name": "={{ $json.body.channel_name }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "channel_id",
+              "displayName": "channel_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "author_id",
+              "displayName": "author_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "author_username",
+              "displayName": "author_username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "channel_name",
+              "displayName": "channel_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "5132bd01-8b3c-4a67-8aa2-bbc948edfd08",
+      "name": "Execute Workflow - Admin Console",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3152,
+        1680
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Discord In": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF - Is Admin?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Is Admin?": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow - Admin Console",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent - HUMI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - HUMI": {
+      "main": [
+        [
+          {
+            "node": "Split Pesan Panjang",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - HUMI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - HUMI",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cari Produk Parfum HMNS": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - HUMI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cari Produk Home of Humans": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - HUMI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Gemini - Tool Parfum": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Cari Produk Parfum HMNS",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Gemini - Tool Home": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Cari Produk Home of Humans",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Pesan Panjang": {
+      "main": [
+        [
+          {
+            "node": "Discord - Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d323ebec-5441-4aa3-94a6-84d40c460ca0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "aaa0f8005237f97261923f721d4d7a3d4544f146293b15f557de4b41bdc50560"
+  },
+  "nodeGroups": [],
+  "id": "y8XP7uw37a1J9g99",
+  "tags": []
+}

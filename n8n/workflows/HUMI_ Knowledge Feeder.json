@@ -1,0 +1,445 @@
+{
+  "name": "HUMI: Knowledge Feeder",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "3b79dc59-59ef-440b-8ce2-0ea3fa168c4a",
+      "name": "Manual Trigger (Test)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Cara pakai\n1. Klik 'Execute workflow' / 'Test workflow' untuk jalan manual dulu.\n2. Kalau sudah yakin hasilnya benar, ganti Manual Trigger ini dengan Schedule Trigger (misal tiap 1 jam) supaya update otomatis.\n3. Jalur atas = Parfum (HMNS) -> collection 'hmns_parfum'\n   Jalur bawah = Home of Humans -> collection 'hmns_home'",
+        "height": 220,
+        "width": 320
+      },
+      "id": "55a0e024-0df3-467e-896c-ef40d37930db",
+      "name": "Catatan",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BjUwcLiWTok__lueLu-_42kOlWE58-60Xz6hcrkXbF0",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 997561559,
+          "mode": "list",
+          "cachedResultName": "Parfum (HMNS)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BjUwcLiWTok__lueLu-_42kOlWE58-60Xz6hcrkXbF0/edit#gid=997561559"
+        },
+        "options": {}
+      },
+      "id": "f7d78ce7-4f39-4681-a7be-04cebf748fbd",
+      "name": "Read Sheet - Parfum",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2112,
+        608
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "d9nHB0FWrysc1mxy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BjUwcLiWTok__lueLu-_42kOlWE58-60Xz6hcrkXbF0",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 310096920,
+          "mode": "list",
+          "cachedResultName": "Home of Humans",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BjUwcLiWTok__lueLu-_42kOlWE58-60Xz6hcrkXbF0/edit#gid=310096920"
+        },
+        "options": {}
+      },
+      "id": "e2d3b7c5-83b8-4eb6-9b66-64d8d77fcf8f",
+      "name": "Read Sheet - Home of Humans",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2112,
+        1152
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "d9nHB0FWrysc1mxy",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gabungkan semua kolom produk Parfum jadi 1 blok teks yang siap di-embed\nconst items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const d = item.json;\n\n  // Lewati baris kosong/tanpa nama\n  if (!d.Nama) continue;\n\n  const teks = `Produk: ${d.Nama || ''}\nTipe: ${d.Tipe || ''}\nUkuran: ${d.Ukuran || ''}\nFamily Aroma: ${d.Family_Aroma || ''}\nMind Notes: ${d.Mind_Notes || ''}\nHeart Notes: ${d.Heart_Notes || ''}\nSoul Notes: ${d.Soul_Notes || ''}\nDeskripsi: ${d.Deskripsi || ''}\nSillage: ${d.Sillage || ''}\nProjection: ${d.Projection || ''}\nLongevity: ${d.Longevity || ''}\nHarga: Rp${d.Harga || ''}\nStok: ${d.Stok_Web || ''}\nLink Web: ${d.Link_Web || ''}\nLink Marketplace: ${d.Link_Marketplace || ''}`.trim();\n\n  output.push({\n    json: {\n      sku: d.SKU || '',\n      nama: d.Nama || '',\n      harga: d.Harga || '',\n      link_web: d.Link_Web || '',\n      text: teks,\n      collection: 'hmns_parfum'\n    }\n  });\n}\n\nreturn output;"
+      },
+      "id": "03ad9d5b-0ebf-4a00-a34f-76f140fb7aca",
+      "name": "Gabungkan Teks - Parfum",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gabungkan semua kolom produk Home of Humans jadi 1 blok teks yang siap di-embed\nconst items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const d = item.json;\n\n  if (!d.Nama) continue;\n\n  const teks = `Produk: ${d.Nama || ''}\nTipe: ${d.Tipe || ''}\nUkuran: ${d.Ukuran || ''}\nFamily Aroma: ${d.Family_Aroma || ''}\nMind Notes: ${d.Mind_Notes || ''}\nHeart Notes: ${d.Heart_Notes || ''}\nSoul Notes: ${d.Soul_Notes || ''}\nDeskripsi: ${d.Deskripsi || ''}\nProjection: ${d.Projection || ''}\nHarga: Rp${d.Harga || ''}\nStok: ${d.Stok_Web || ''}\nLink Web: ${d.Link_Web || ''}\nLink Marketplace: ${d.Link_Marketplace || ''}`.trim();\n\n  output.push({\n    json: {\n      sku: d.SKU || '',\n      nama: d.Nama || '',\n      harga: d.Harga || '',\n      link_web: d.Link_Web || '',\n      text: teks,\n      collection: 'hmns_home'\n    }\n  });\n}\n\nreturn output;"
+      },
+      "id": "5e285668-f6a7-4894-9d65-01eca443c805",
+      "name": "Gabungkan Teks - Home",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "hmns_parfum",
+          "mode": "list",
+          "cachedResultName": "hmns_parfum"
+        },
+        "options": {}
+      },
+      "id": "238d4698-a07d-47e1-acac-abc32931994d",
+      "name": "Qdrant - Insert Parfum",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.1,
+      "position": [
+        2624,
+        608
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "9iZwHd09WREx5ih0",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "hmns_home",
+          "mode": "list",
+          "cachedResultName": "hmns_home"
+        },
+        "options": {}
+      },
+      "id": "6eb83400-672f-4da4-879d-29d1c108e674",
+      "name": "Qdrant - Insert Home",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.1,
+      "position": [
+        2624,
+        1152
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "9iZwHd09WREx5ih0",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "73a5ec16-0af6-41b3-991f-87b6076a1bda",
+      "name": "Embeddings Gemini - Parfum",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        784
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "BIsQZwAIJWKSjKx2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "95157a61-d5cf-4011-a6e2-a9c5cddd8d42",
+      "name": "Embeddings Gemini - Home",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        1312
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "BIsQZwAIJWKSjKx2",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.text }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "sku",
+                "value": "={{ $json.sku }}"
+              },
+              {
+                "name": "nama",
+                "value": "={{ $json.nama }}"
+              },
+              {
+                "name": "harga",
+                "value": "={{ $json.harga }}"
+              },
+              {
+                "name": "link_web",
+                "value": "={{ $json.link_web }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "677cab98-c083-4ea2-b596-1ff4657c401c",
+      "name": "Document Loader - Parfum",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        2704,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.text }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "sku",
+                "value": "={{ $json.sku }}"
+              },
+              {
+                "name": "nama",
+                "value": "={{ $json.nama }}"
+              },
+              {
+                "name": "harga",
+                "value": "={{ $json.harga }}"
+              },
+              {
+                "name": "link_web",
+                "value": "={{ $json.link_web }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "6014c6df-a7fd-4498-9397-0f2b27f80cbb",
+      "name": "Document Loader - Home",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        2704,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        2704,
+        976
+      ],
+      "id": "8eea48dd-b823-41be-8897-2fd426eae56c",
+      "name": "Recursive Character Text Splitter"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        2704,
+        1504
+      ],
+      "id": "8b7fb3f5-34d9-4833-b01c-932d674180e5",
+      "name": "Recursive Character Text Splitter1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger (Test)": {
+      "main": [
+        [
+          {
+            "node": "Read Sheet - Parfum",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Sheet - Home of Humans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sheet - Parfum": {
+      "main": [
+        [
+          {
+            "node": "Gabungkan Teks - Parfum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sheet - Home of Humans": {
+      "main": [
+        [
+          {
+            "node": "Gabungkan Teks - Home",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gabungkan Teks - Parfum": {
+      "main": [
+        [
+          {
+            "node": "Qdrant - Insert Parfum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gabungkan Teks - Home": {
+      "main": [
+        [
+          {
+            "node": "Qdrant - Insert Home",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Gemini - Parfum": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant - Insert Parfum",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Gemini - Home": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant - Insert Home",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Loader - Parfum": {
+      "ai_document": [
+        [
+          {
+            "node": "Qdrant - Insert Parfum",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Loader - Home": {
+      "ai_document": [
+        [
+          {
+            "node": "Qdrant - Insert Home",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Document Loader - Parfum",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter1": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Document Loader - Home",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "cb029fcd-2481-419f-93fe-67912d0b4aea",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "aaa0f8005237f97261923f721d4d7a3d4544f146293b15f557de4b41bdc50560"
+  },
+  "nodeGroups": [],
+  "id": "gf9SYxfxQecba7oW",
+  "tags": []
+}

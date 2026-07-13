@@ -157,6 +157,8 @@ Bertugas memuat data katalog produk dari Google Sheets ke dalam Qdrant sebagai b
 
 Data dipisah menjadi dua *collection* terpisah agar pencarian semantik lebih presisi — pertanyaan soal "parfum badan" tidak akan tercampur dengan hasil "pengharum ruangan".
 
+![HUMI Knowledge Feeder](./HUMI%20Knowledge%20Feeder.png)
+
 ### 2. Customer Agent
 
 Workflow utama yang menangani **seluruh pesan masuk dari Discord**, baik dari customer maupun admin. Workflow ini bertindak sebagai *router* utama.
@@ -187,6 +189,8 @@ Workflow utama yang menangani **seluruh pesan masuk dari Discord**, baik dari cu
                          [Discord: kirim balasan ke channel asal]
 ```
 
+![HUMI Customer Agent (with Product Search)](./HUMI%20Customer%20Agent%20%28with%20Product%20Search%29.png)
+
 ### 3. Admin Console
 
 Dipicu sebagai **sub-workflow** dari Workflow 2 ketika pengirim pesan terdeteksi memiliki role admin. Pendekatan sub-workflow dipilih dibanding webhook terpisah agar bot relay Discord tetap sederhana (lihat bagian [Detail Implementasi](#-detail-implementasi-admin-console) untuk rinciannya).
@@ -206,6 +210,8 @@ Dipicu sebagai **sub-workflow** dari Workflow 2 ketika pengirim pesan terdeteksi
         ├─ !log                    → Query Postgres agregat → ringkasan statistik
         └─ (tidak dikenali)        → balasan daftar command yang tersedia
 ```
+
+![HUMI Admin Console](./HUMI%20Admin%20Console.png)
 
 ---
 

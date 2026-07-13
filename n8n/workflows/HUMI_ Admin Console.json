@@ -1,0 +1,868 @@
+{
+  "name": "HUMI: Admin Console",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "channel_id"
+            },
+            {
+              "name": "content"
+            },
+            {
+              "name": "author_id"
+            },
+            {
+              "name": "author_username"
+            },
+            {
+              "name": "channel_name"
+            }
+          ]
+        }
+      },
+      "id": "f42118d5-b065-4cd2-9158-44c9375c86f4",
+      "name": "Webhook - Admin In",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        544,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Cara kerja (Opsi A - Final)\nWorkflow ini DIPANGGIL sebagai SUB-WORKFLOW dari Workflow 2\n(HUMI: Customer Agent), lewat node 'Execute Workflow' yang\nditempatkan di cabang TRUE dari 'IF - Is Admin?'.\n\nBot relay Discord TIDAK PERLU DIUBAH - tetap kirim semua\npesan ke 1 webhook /humi-discord-in seperti biasa.\nRouting admin vs customer terjadi di DALAM n8n (Workflow 2),\nbukan di level bot relay.",
+        "height": 280,
+        "width": 360
+      },
+      "id": "e55bb98c-4b02-4332-8eaf-f43ed8aaabee",
+      "name": "Catatan Arsitektur",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        336,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parsing command admin: pisahkan command (!stock, !harga, dst) dari argumennya\nconst body = $input.first().json;\nconst content = (body.content || '').trim();\n\n// Abaikan pesan non-command dari admin, jangan balas apapun\nif (!content.startsWith('!')) {\n  return [];\n}\n\nconst parts = content.split(/\\s+/);\nconst command = parts[0].toLowerCase();\nconst args = parts.slice(1);\n\nreturn [{\n  json: {\n    ...body,\n    command,\n    args,\n    raw_text: content\n  }\n}];"
+      },
+      "id": "9bf95498-45d2-46f5-bc48-fd3409e552c3",
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "r1",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "!stock",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "r2",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "!harga",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "r3",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "!broadcast",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "r4",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "!status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "r5",
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "!log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "eb4b71a0-1ecb-4a77-ac1d-531c0bded0dd",
+      "name": "Switch Command",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        944,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE products\nSET\n    stok_web = $2,\n    updated_at = NOW()\nWHERE sku = $1\nRETURNING sku, nama, stok_web;",
+        "options": {
+          "queryReplacement": "={{ $json.args[0] }},{{ $json.args[1] }}"
+        }
+      },
+      "id": "06687ce9-6db3-42fb-b7e3-20f7ad7d690f",
+      "name": "Update Stok di Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1264,
+        560
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "qunLdRuScbJcnKnz",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE products\nSET\n    harga = $2,\n    updated_at = NOW()\nWHERE sku = $1\nRETURNING sku, nama, harga;",
+        "options": {
+          "queryReplacement": "={{ $json.args[0] }},{{ $json.args[1] }}"
+        }
+      },
+      "id": "4a0b793d-52af-4bff-8cad-a0e76c55bb6d",
+      "name": "Update Harga di Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1264,
+        720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "qunLdRuScbJcnKnz",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Susun pesan broadcast dari argumen command !broadcast <teks>\nconst args = $json.args || [];\nconst teks = args.join(' ');\n\nif (!teks) {\n  return [{ json: { ...$json, broadcast_text: '⚠️ Format salah. Gunakan: !broadcast <teks pengumuman>' } }];\n}\n\nreturn [{ json: { ...$json, broadcast_text: `📢 **Pengumuman dari HMNS!**\\n\\n${teks}` } }];"
+      },
+      "id": "709c7290-4a25-40aa-9a1e-d2cb2a8edb35",
+      "name": "Susun Pesan Broadcast",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cek health system: n8n selalu OK kalau workflow ini jalan, jadi fokus cek Postgres & Qdrant\n// Catatan: pengecekan Qdrant/Gemini quota secara langsung butuh HTTP Request node tambahan,\n// di versi awal ini kita laporkan status dasar dulu.\nconst now = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });\nreturn [{ json: { ...$json, status_text: `🩺 **Status Sistem HUMI**\\n\\n✅ n8n: Online\\n✅ Workflow Admin Console: Aktif\\n🕐 Dicek pada: ${now} WIB\\n\\n_Catatan: cek detail Qdrant & kuota Gemini API perlu ditambahkan di versi berikutnya._` } }];"
+      },
+      "id": "276d64f9-bd0f-4c62-846d-1ea2590f0a4c",
+      "name": "Susun Pesan Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) AS total_chat, COUNT(DISTINCT session_id) AS total_user FROM humi_chat_memory;",
+        "options": {}
+      },
+      "id": "c6a9350c-d9a8-42e4-8037-34d985367f34",
+      "name": "Query Log Hari Ini",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1264,
+        1200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "qunLdRuScbJcnKnz",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format hasil query log jadi teks rapi\nconst row = $json;\nconst total_chat = row.total_chat || 0;\nconst total_user = row.total_user || 0;\nreturn [{ json: { ...row, log_text: `📊 **Log Chat Keseluruhan**\\n\\nTotal pesan tersimpan: ${total_chat}\\nTotal user unik: ${total_user}\\n\\n_Catatan: tabel memori saat ini tidak menyimpan timestamp, sehingga statistik ini mencakup seluruh riwayat, bukan hanya hari ini. Breakdown top pertanyaan & eskalasi akan ditambahkan di versi berikutnya._` } }];"
+      },
+      "id": "fe350fd6-d853-4f34-815f-a39dc2bbc3fc",
+      "name": "Susun Pesan Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fallback: command tidak dikenali\nreturn [{ json: { ...$json, fallback_text: `❓ Command \\`${$json.command || '(kosong)'}\\` tidak dikenali.\\n\\nCommand yang tersedia:\\n\\`!stock <SKU> <jumlah>\\`\\n\\`!harga <SKU> <nominal>\\`\\n\\`!broadcast <teks>\\`\\n\\`!status\\`\\n\\`!log\\`` } }];"
+      },
+      "id": "335fe763-2d8f-47d2-b049-ac6bf12bc539",
+      "name": "Command Tidak Dikenali",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        1376
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1519735726067945573",
+          "mode": "list",
+          "cachedResultName": "n8n Projects",
+          "cachedResultUrl": "https://discord.com/channels/1519735726067945573"
+        },
+        "channelId": {
+          "__rl": true,
+          "mode": "expression",
+          "value": "={{ $('Parse Command').item.json.channel_id }}"
+        },
+        "content": "={{ $json.stock_reply || $json.harga_reply || $json.status_text || $json.log_text || $json.fallback_text || 'Selesai.' }}",
+        "options": {}
+      },
+      "id": "ccac4694-43c6-4efd-b078-e6ef76e7f41b",
+      "name": "Discord - Balas Admin",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        912
+      ],
+      "webhookId": "4ff33a7e-63fe-4318-a970-aff83122f855",
+      "credentials": {
+        "discordBotApi": {
+          "id": "szUb2P4NmKmeJQjY",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format hasil update stok jadi teks balasan\nconst row = $json;\n\n// Cek pakai SKU kapital (dari Google Sheets) atau sku kecil (dari Postgres)\nconst sku = row.SKU || row.sku;\nconst nama = row.nama || row.Nama || sku;\nconst stok = row.Stok_Web || row.stok_web;\n\nif (!sku) {\n  return [{ json: { ...row, stock_reply: `⚠️ SKU tidak ditemukan. Pastikan format: \\`!stock HMNS-PRF-001 50\\`` } }];\n}\n\nreturn [{ json: { ...row, stock_reply: `✅ Stok **${nama}** (${sku}) berhasil diupdate jadi **${stok}**.` } }];"
+      },
+      "id": "2fe3316c-bde0-41a1-9716-b590de76a60b",
+      "name": "Format Balasan Stok",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $json;\nconst sku = row.SKU || row.sku;\nconst nama = row.nama || row.Nama || sku;\nconst harga = row.Harga || row.harga;\n\nif (!sku) {\n  return [{ json: { ...row, harga_reply: `⚠️ SKU tidak ditemukan. Pastikan format: \\`!harga HMNS-PRF-001 350000\\`` } }];\n}\n\nreturn [{ json: { ...row, harga_reply: `✅ Harga **${nama}** (${sku}) berhasil diupdate jadi **Rp${Number(harga).toLocaleString('id-ID')}**.` } }];"
+      },
+      "id": "8d97fdcf-cb3b-4e58-b72e-0d77b63dcddf",
+      "name": "Format Balasan Harga",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1519735726067945573",
+          "mode": "list",
+          "cachedResultName": "n8n Projects",
+          "cachedResultUrl": "https://discord.com/channels/1519735726067945573"
+        },
+        "channelId": {
+          "__rl": true,
+          "mode": "expression",
+          "value": "={{ $('Parse Command').item.json.channel_id }}"
+        },
+        "content": "✅ Broadcast berhasil dikirim ke #promo-customer!",
+        "options": {}
+      },
+      "id": "c5ee9aae-8965-4e36-abf1-06e1fc0aee2d",
+      "name": "Konfirmasi Broadcast ke Admin",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        880
+      ],
+      "webhookId": "0512b8f7-284d-4e2c-8391-451483f4be87",
+      "credentials": {
+        "discordBotApi": {
+          "id": "szUb2P4NmKmeJQjY",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1519735726067945573",
+          "mode": "list",
+          "cachedResultName": "n8n Projects",
+          "cachedResultUrl": "https://discord.com/channels/1519735726067945573"
+        },
+        "channelId": {
+          "__rl": true,
+          "mode": "expression",
+          "value": "1520772994962821150"
+        },
+        "content": "={{ $json.broadcast_text }}",
+        "options": {}
+      },
+      "id": "7bc5bcfe-1e8f-4290-b641-890fe3a4de7e",
+      "name": "Discord - Kirim Broadcast",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        880
+      ],
+      "webhookId": "6d2b5660-b5ae-46d7-acc3-73c8a8c72d8f",
+      "credentials": {
+        "discordBotApi": {
+          "id": "szUb2P4NmKmeJQjY",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1BjUwcLiWTok__lueLu-_42kOlWE58-60Xz6hcrkXbF0",
+          "mode": "list",
+          "cachedResultName": "HUMI-Katalog-Produk-HMNS-Updated-v2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BjUwcLiWTok__lueLu-_42kOlWE58-60Xz6hcrkXbF0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 997561559,
+          "mode": "list",
+          "cachedResultName": "Parfum (HMNS)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BjUwcLiWTok__lueLu-_42kOlWE58-60Xz6hcrkXbF0/edit#gid=997561559"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "SKU": "={{ $('Update Stok di Postgres').item.json.sku }}",
+            "Stok_Web": "={{ $('Update Stok di Postgres').item.json.stok_web }}",
+            "Last_Updated": "={{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}"
+          },
+          "matchingColumns": [
+            "SKU"
+          ],
+          "schema": [
+            {
+              "id": "SKU",
+              "displayName": "SKU",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Nama",
+              "displayName": "Nama",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tipe",
+              "displayName": "Tipe",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ukuran",
+              "displayName": "Ukuran",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Family_Aroma",
+              "displayName": "Family_Aroma",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mind_Notes",
+              "displayName": "Mind_Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Heart_Notes",
+              "displayName": "Heart_Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Soul_Notes",
+              "displayName": "Soul_Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Deskripsi",
+              "displayName": "Deskripsi",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sillage",
+              "displayName": "Sillage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Projection",
+              "displayName": "Projection",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Longevity",
+              "displayName": "Longevity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Harga",
+              "displayName": "Harga",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Stok_Web",
+              "displayName": "Stok_Web",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Link_Web",
+              "displayName": "Link_Web",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Link_Marketplace",
+              "displayName": "Link_Marketplace",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sumber",
+              "displayName": "Sumber",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Updated",
+              "displayName": "Last_Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1472,
+        560
+      ],
+      "id": "9d771dc1-25b2-4b96-aab4-64edd78442e6",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "d9nHB0FWrysc1mxy",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Admin In": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Switch Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Command": {
+      "main": [
+        [
+          {
+            "node": "Update Stok di Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Harga di Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Susun Pesan Broadcast",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Susun Pesan Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Log Hari Ini",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Command Tidak Dikenali",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Stok di Postgres": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Harga di Postgres": {
+      "main": [
+        [
+          {
+            "node": "Format Balasan Harga",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Balasan Stok": {
+      "main": [
+        [
+          {
+            "node": "Discord - Balas Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Balasan Harga": {
+      "main": [
+        [
+          {
+            "node": "Discord - Balas Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Pesan Broadcast": {
+      "main": [
+        [
+          {
+            "node": "Discord - Kirim Broadcast",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Pesan Status": {
+      "main": [
+        [
+          {
+            "node": "Discord - Balas Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Log Hari Ini": {
+      "main": [
+        [
+          {
+            "node": "Susun Pesan Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Pesan Log": {
+      "main": [
+        [
+          {
+            "node": "Discord - Balas Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Command Tidak Dikenali": {
+      "main": [
+        [
+          {
+            "node": "Discord - Balas Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord - Kirim Broadcast": {
+      "main": [
+        [
+          {
+            "node": "Konfirmasi Broadcast ke Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Format Balasan Stok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2304f4f4-7494-427b-a765-d8738385e3b4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "aaa0f8005237f97261923f721d4d7a3d4544f146293b15f557de4b41bdc50560"
+  },
+  "nodeGroups": [],
+  "id": "jaIy7kPBGv9upFBX",
+  "tags": []
+}
