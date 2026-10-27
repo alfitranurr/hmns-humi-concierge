@@ -1,433 +1,413 @@
-# HUMI — AI Concierge for HMNS Perfume on Discord
+# HUMI: AI Concierge for HMNS Perfume on Discord
 
 ![Discord](https://img.shields.io/badge/Discord-Bot-5865F2?logo=discord&logoColor=white)
-![Google Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
 ![n8n](https://img.shields.io/badge/n8n-Automation-EA4B71?logo=n8n&logoColor=white)
+![Groq](https://img.shields.io/badge/Groq-gpt--oss-F55036)
+![Google Gemini](https://img.shields.io/badge/Gemini-Embeddings-4285F4?logo=google&logoColor=white)
 ![Qdrant](https://img.shields.io/badge/Qdrant-Vector%20DB-DC244C)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791?logo=postgresql)
-![Docker](https://img.shields.io/badge/Docker-Container-2496ED?logo=docker)
-![License](https://img.shields.io/badge/License-MIT-green)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)
 
-> **HUMI** (Human Understanding & Matching Intelligence) adalah AI-powered conversational concierge berbasis Discord yang dirancang khusus untuk **HMNS Perfume**, membantu pelanggan menemukan parfum yang tepat berdasarkan vibe, aroma, occasion, dan kebutuhan personal — sekaligus membantu tim admin mengelola operasional customer service sehari-hari melalui semantic search dan otomatisasi berbasis Gemini, n8n, Qdrant, dan PostgreSQL.
+> **HUMI** (Human Understanding & Matching Intelligence) is a Discord concierge for **HMNS Perfume**. It recommends fragrances by vibe, scent, occasion and budget from the real product catalog, hands order and complaint questions to human admins, and gives the admin team chat commands for stock, prices, broadcasts and stats. It runs on n8n, Groq, Gemini embeddings, Qdrant and PostgreSQL, and the whole stack is free to run.
 
 ![Cover HUMI AI](./Cover%20HUMI%20AI.png)
 
 ---
 
-## 📋 Daftar Isi
+## Contents
 
-- [HUMI — AI Concierge for HMNS Perfume on Discord](#humi--ai-concierge-for-hmns-perfume-on-discord)
-  - [📋 Daftar Isi](#-daftar-isi)
-  - [🌱 Latar Belakang](#-latar-belakang)
-  - [🎯 Pengenalan Project](#-pengenalan-project)
-  - [💬 Demo Percakapan](#-demo-percakapan)
-    - [Greeting Interaction](#greeting-interaction)
-    - [Product Introduction](#product-introduction)
-    - [Product Catalog Recommendation](#product-catalog-recommendation)
-  - [🛠️ Tech Stack](#️-tech-stack)
-  - [🏗️ Arsitektur \& Workflow](#️-arsitektur--workflow)
-    - [0. Discord Relay Bot (Node.js)](#0-discord-relay-bot-nodejs)
-    - [1. Knowledge Feeder](#1-knowledge-feeder)
-    - [2. Customer Agent](#2-customer-agent)
-    - [3. Admin Console](#3-admin-console)
-  - [🔧 Detail Implementasi: Admin Console](#-detail-implementasi-admin-console)
-    - [Mengapa Sub-Workflow, Bukan Webhook Terpisah?](#mengapa-sub-workflow-bukan-webhook-terpisah)
-    - [Konfigurasi Workflow Input Schema](#konfigurasi-workflow-input-schema)
-    - [Catatan Teknis: Perubahan Struktur Data Setelah Melalui Execute Workflow](#catatan-teknis-perubahan-struktur-data-setelah-melalui-execute-workflow)
-    - [Routing Channel untuk `!broadcast`](#routing-channel-untuk-broadcast)
-    - [Skema Tabel Pendukung](#skema-tabel-pendukung)
-    - [Catatan Teknis: Struktur Tabel `humi_chat_memory`](#catatan-teknis-struktur-tabel-humi_chat_memory)
-  - [📊 Struktur Data Produk](#-struktur-data-produk)
-  - [✨ Fitur Utama](#-fitur-utama)
-  - [🚦 Status Pengembangan](#-status-pengembangan)
-  - [🧩 Tantangan \& Pembelajaran](#-tantangan--pembelajaran)
-  - [🗺️ Roadmap Selanjutnya](#️-roadmap-selanjutnya)
-  - [⚠️ Disclaimer](#️-disclaimer)
-  - [👨‍💻 Identitas Developer](#-identitas-developer)
+- [Why HUMI](#why-humi)
+- [What HUMI does](#what-humi-does)
+- [Demo](#demo)
+- [Architecture](#architecture)
+- [Tech stack and free-tier limits](#tech-stack-and-free-tier-limits)
+- [Repository layout](#repository-layout)
+- [Getting started](#getting-started)
+- [Admin commands](#admin-commands)
+- [Data model](#data-model)
+- [Guardrails and design decisions](#guardrails-and-design-decisions)
+- [Project status](#project-status)
+- [Challenges and lessons learned](#challenges-and-lessons-learned)
+- [Roadmap](#roadmap)
+- [Disclaimer](#disclaimer)
+- [Author](#author)
 
 ---
 
-## 🌱 Latar Belakang
+## Why HUMI
 
-Membeli parfum secara online punya satu tantangan unik yang tidak dimiliki kategori produk lain: **indra penciuman tidak bisa diwakilkan secara digital**. Foto bisa dilihat, ulasan bisa dibaca, tapi aroma tetap menjadi pertaruhan — terutama bagi pembeli yang belum pernah mencoba produk tersebut sebelumnya.
+Buying perfume online has a problem other categories don't: you can't smell through a screen. Photos and reviews help, but the scent is still a gamble, especially for a first purchase. Human customer service helps, but it only works during office hours, slows down when it gets busy, and every minute a customer waits lowers the chance they buy.
 
-Tantangan ini diperparah oleh keterbatasan operasional customer service (CS) konvensional:
+HUMI covers that gap. It is available 24/7, answers from verified catalog data instead of guessing, and says so honestly when it doesn't know, passing the question to a human instead.
 
-- **Jam layanan terbatas** — CS manusia hanya tersedia di jam kerja, sementara pelanggan berbelanja kapan saja, termasuk malam hari dan akhir pekan.
-- **Waktu respons lambat saat ramai** — ketika CS menangani banyak percakapan sekaligus, waktu balas bisa melonjak dari hitungan menit menjadi berjam-jam.
-- **Keputusan pembelian sensitif waktu** — semakin lama pelanggan menunggu respons, semakin besar kemungkinan minat belinya menurun.
-
-HUMI dibangun untuk menjawab tantangan-tantangan ini: hadir 24/7, memberikan rekomendasi yang relevan berdasarkan data produk asli, dan tetap jujur ketika tidak memiliki jawaban yang pasti.
+The core principle of the project: **an honest AI is worth more than one that sounds smart but makes things up.** Most technical choices here, from vector search and the prompt rules to how stock and prices are synced, exist to keep HUMI from inventing prices, stock or product claims.
 
 ---
 
-## 🎯 Pengenalan Project
+## What HUMI does
 
-HUMI adalah AI Agent yang beroperasi di **Discord**, berperan sebagai *digital concierge* yang:
+**For customers** (in `#tanya-humi`, in DMs, or anywhere they @mention HUMI)
 
-1. **Memahami kebutuhan pelanggan secara natural** — pelanggan tidak perlu memilih dari menu kaku, cukup mengetik seperti mengobrol dengan CS manusia ("lagi nyari yang fresh buat sehari-hari dong").
-2. **Mencari jawaban dari basis data produk asli** — bukan menebak atau mengarang, melainkan menarik informasi dari katalog resmi HMNS yang sudah diverifikasi.
-3. **Mengenali batasannya sendiri** — untuk hal-hal sensitif (klaim kesehatan, status pesanan, data pembayaran), HUMI akan jujur mengakui keterbatasannya dan meneruskan ke admin manusia, bukan menjawab asal.
-4. **Membantu admin bekerja lebih efisien** — lewat command khusus untuk update stok, broadcast promo, dan monitoring tanpa harus membuka banyak tools terpisah.
+- 👋 **First-chat greeting.** New users get a greeting matched to the time of day (WIB), a one-line introduction and three example questions; returning users continue where they left off.
+- 🔍 **Recommendations by vibe, scent, occasion and budget**, via semantic search over the catalog, with price, stock and a clickable link. Never more than three products per reply, and never above the stated budget.
+- 🆚 **Comparisons, gift ideas, layering suggestions**, and plain-language explanations of scent notes ("citrus = fresh like orange peel").
+- 📦 **Honest stock.** HUMI quotes the current stock, says so casually when fewer than 10 are left, offers alternatives when an item is sold out, and never promises restocks.
+- 🚫 **No invented facts.** Promos, shipping, payment, BPOM/halal or medical claims are never guessed; HUMI points to the official site or offers a hand-off.
+- 🚨 **Escalation to humans.** Order status, complaints, requests for a human and partnership questions get an empathetic reply, and a summary with a direct message link goes to `#admin-hmns`.
+- 💬 **Casual, light Gen Z tone** in Indonesian (or English when the customer writes in English), with a "HUMI is typing…" indicator while it thinks.
+- 🛡️ **Resilience.** Prompt-injection attempts are refused, spam is rate-limited (6 messages per minute per user), and if the AI is unavailable the customer still gets a polite reply.
 
-Filosofi inti dari pengembangan project ini: **AI yang jujur lebih bernilai daripada AI yang terlihat pintar tapi mengarang.** Setiap keputusan teknis dalam project ini — dari pemilihan vector search, sistem prompt, hingga validasi data katalog — diarahkan untuk meminimalkan risiko *hallucination*, terutama untuk informasi yang menyangkut harga, stok, dan klaim produk.
+**For admins** (role `HMNS-Admin` in the private `#admin-hmns` channel)
 
----
-
-## 💬 Demo Percakapan
-
-### Greeting Interaction
-
-![Greeting Conversation](./Greeting%20Conversation.png)
-
-HUMI menyapa pengguna secara natural dan menjaga nada percakapan yang ramah, konsisten dengan identitas brand HMNS.
+- `!stock`, `!harga`, `!broadcast`, `!status`, `!log`, `!help` (see [Admin commands](#admin-commands)).
+- Stock and price changes are written to PostgreSQL **and** the Google Sheet, then synced to HUMI's knowledge automatically within about a minute.
+- Escalation alerts, sync reports and AI-quota alerts arrive in the same channel.
 
 ---
 
-### Product Introduction
+## Demo
 
-![Product Introduction Conversation](./Product%20Introduction%20Conversation.png)
+The screenshots below are from the **first version** of HUMI. The current version keeps the same flow but uses the new tone, first-chat greeting and live stock; updated screenshots and a demo video are on the [roadmap](#roadmap).
 
-Pelanggan dapat menanyakan hal umum seperti *"kamu jualan apa aja?"*. HUMI merangkum kategori produk yang tersedia menggunakan data katalog yang sudah terverifikasi, bukan hasil mengarang.
-
----
-
-### Product Catalog Recommendation
-
-![Product Catalog Conversation](./Product%20Catalog%20Conversation.png)
-
-Ketika pelanggan meminta detail produk, HUMI mengambil produk yang relevan melalui *semantic vector search* dari Qdrant dan menyajikan informasi terstruktur, meliputi notes aroma, deskripsi, harga, stok, dan link pembelian.
+| Greeting | Product introduction | Catalog recommendation |
+|---|---|---|
+| ![Greeting Conversation](./Greeting%20Conversation.png) | ![Product Introduction Conversation](./Product%20Introduction%20Conversation.png) | ![Product Catalog Conversation](./Product%20Catalog%20Conversation.png) |
 
 ---
 
-## 🛠️ Tech Stack
+## Architecture
 
-Seluruh komponen dipilih dengan prinsip open-source, self-hosted, dan dapat dijalankan tanpa biaya lisensi, bahkan di spesifikasi server yang ringan.
+```mermaid
+flowchart LR
+    D[Discord] -->|messageCreate| R[Relay bot<br/>discord.js]
+    R -->|webhook| CA[n8n: Customer Agent]
+    CA -->|admin in #admin-hmns| AC[n8n: Admin Console]
+    CA -->|everyone else| AG[AI Agent<br/>Groq gpt-oss-120b<br/>fallback gpt-oss-20b]
+    AG <--> Q[(Qdrant<br/>hmns_parfum / hmns_home)]
+    AG <--> M[(PostgreSQL<br/>humi_chat_memory)]
+    AG -->|reply / escalation| D
+    AC -->|!stock / !harga| P[(PostgreSQL<br/>products)]
+    AC -->|!stock / !harga| S[Google Sheet]
+    AC -->|run now| KF[n8n: Knowledge Feeder]
+    S -->|checked every 5 min| KF
+    KF -->|Gemini embeddings| Q
+    KF --> P
+    KF -->|sync report| D
+```
 
-| Layer                     | Teknologi                                                 | Alasan Pemilihan                                                                                                                                                                                                  |
-| ------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Orkestrasi Workflow**   | [n8n](https://n8n.io/) (Community Edition, Docker)        | Gratis selamanya untuk self-hosted; node bawaan untuk AI Agent, Google Sheets, dan vector store sudah lengkap                                                                                                     |
-| **Channel Komunikasi**    | Discord (Bot Application)                                 | Gratis, mendukung *rich embed*, role-based access untuk membedakan customer dan admin                                                                                                                             |
-| **Relay Pesan Discord**   | Node.js custom (`discord.js` + `axios`)                   | Discord tidak menyediakan trigger native untuk pesan masuk di n8n; dibangun *relay bot* ringan yang meneruskan event `messageCreate` ke webhook n8n, menggunakan library resmi Discord agar stabil jangka panjang |
-| **LLM (Otak HUMI)**       | Google Gemini API — `gemini-2.5-flash`                    | Free tier tanpa kartu kredit, context window besar, performa memadai untuk Bahasa Indonesia informal                                                                                                              |
-| **Embedding**             | Google Gemini API — `gemini-embedding-001` (3072 dimensi) | Dipanggil langsung lewat API, tidak memerlukan container model lokal yang berat                                                                                                                                   |
-| **Vector Database**       | [Qdrant](https://qdrant.tech/) (Docker)                   | Open-source, ringan, digunakan untuk *semantic search* produk berdasarkan vibe/aroma                                                                                                                              |
-| **Database Memori & Log** | PostgreSQL (Docker)                                       | Menyimpan riwayat percakapan per pengguna dan data operasional (stok, harga)                                                                                                                                      |
-| **Sumber Data Produk**    | Google Sheets                                             | *Single source of truth* katalog produk, mudah diperbarui oleh tim non-teknis                                                                                                                                     |
-| **Containerization**      | Docker & Docker Compose                                   | Seluruh stack berjalan terisolasi, mudah direplikasi di lingkungan lain                                                                                                                                           |
+The system is one small relay service plus three n8n workflows.
 
-> **Catatan biaya:** seluruh software di atas gratis dan open-source. Satu-satunya biaya riil di luar kendali software adalah hosting (VPS atau perangkat pribadi yang menyala 24 jam) — namun dalam tahap pengembangan ini, seluruh sistem dijalankan secara lokal melalui Docker Desktop di komputer pribadi.
+### Relay bot (Node.js, `discord-relay/`)
+
+n8n has no native trigger for incoming Discord messages, so a small `discord.js` service forwards them to one n8n webhook. It also:
+
+- decides **where HUMI listens**: every message in `#tanya-humi`, DMs, @mentions elsewhere, and only `!` commands in `#admin-hmns` (an admin command typed anywhere else gets a short hint instead of an AI call);
+- shows the **typing indicator** until HUMI's reply appears;
+- **rate-limits** each user to 6 messages per minute;
+- replies with a "technical issue" message if n8n is unreachable;
+- optionally **welcomes new members** with a short introduction (`ENABLE_WELCOME`).
+
+### 1. Customer Agent
+
+```
+Webhook - Discord In
+  └─ IF - Is Admin? (role HMNS-Admin AND channel #admin-hmns)
+       ├─ yes → Execute Workflow - Admin Console
+       └─ no  → Check Chat History (first chat or not)
+                → AI Agent - HUMI
+                    model:    Groq openai/gpt-oss-120b, fallback openai/gpt-oss-20b
+                    memory:   PostgreSQL, keyed by Discord user ID (last 4 messages)
+                    tools:    search_hmns_perfumes (top 4), search_home_of_humans (top 3)
+                    prompt:   prompts/customer-agent.md + context (name, first chat, place, time)
+                    retries:  3 tries, 5 s apart
+                ├─ success → Extract Escalation Marker
+                │              ├─ Split Long Message → Discord - Send Reply
+                │              └─ IF - Needs Escalation? → Build Escalation Message → Discord - Send Escalation
+                └─ error   → Build Error Reply (polite customer reply)
+                               ├─ Split Long Message → Discord - Send Reply
+                               └─ IF - Alert Admin? (max once per hour) → Discord - Alert Admin
+```
+
+The agent marks a hand-off by ending its reply with `[[ESCALATE|category|summary]]`; the workflow strips the marker before the customer sees the reply and turns it into an admin alert.
+
+### 2. Admin Console
+
+Runs as a sub-workflow of the Customer Agent, so the relay only ever needs one webhook.
+
+```
+Called by Customer Agent → Parse Command (validates and normalises arguments) → Switch Command
+  ├─ !stock     → Update Stock in Postgres → IF - Stock SKU Found? → Update Stock in Sheet → Format Stock Reply
+  │                                                                                     └→ Run Catalog Sync
+  ├─ !harga     → Update Price in Postgres → IF - Price SKU Found? → Update Price in Sheet → Format Price Reply
+  │                                                                                     └→ Run Catalog Sync
+  ├─ !broadcast → Build Broadcast Message → Discord - Send Broadcast (#promo-customer) → Discord - Confirm Broadcast
+  ├─ !status    → Build Status Message
+  ├─ !log       → Query Chat Stats → Build Log Message
+  ├─ !help      → Build Help Message
+  └─ other / bad format → Unknown Command
+→ Discord - Reply to Admin
+```
+
+### 3. Knowledge Feeder (automatic catalog sync)
+
+```
+Schedule - Every 5 Minutes ─┐
+Called by Admin Console ────┼→ Read Sheet - Perfume → Read Sheet - Home of Humans → Detect Catalog Changes
+Manual Trigger (Force Sync) ┘        (stops here when nothing changed: no Gemini calls)
+  → Prepare Product Rows → Upsert Products Table
+  → Build Document - Perfume → Qdrant - Insert Perfume     (Gemini gemini-embedding-001, 3072 dims)
+  → Build Document - Home    → Qdrant - Insert Home
+  → Delete Old Version - Perfume / Home   (removes every vector older than this run)
+  → Save Sync State → Discord - Report Sync (#admin-hmns)
+```
+
+- **Change detection.** The workflow hashes both sheet tabs and compares the hash with the last successful sync (kept in workflow static data). Unchanged sheets cost one Sheets read and no embedding calls.
+- **No gaps, no duplicates.** New vectors are written first, tagged with the run's start time; only then is everything older deleted. Customers never hit an empty catalog, and repeated or overlapping runs can't leave duplicates.
+- **Safe failure.** If a sheet can't be read or comes back empty, the run stops before touching Qdrant or the database.
 
 ---
 
-## 🏗️ Arsitektur & Workflow
+## Tech stack and free-tier limits
 
-Sistem HUMI dibangun di atas **3 workflow n8n** yang saling terpisah namun terhubung, plus satu *relay service* tambahan untuk menjembatani Discord dengan n8n.
+| Layer | Technology | Why |
+|---|---|---|
+| Orchestration | [n8n](https://n8n.io/) Community Edition (Docker) | Free self-hosted; built-in AI Agent, Google Sheets, Postgres and vector-store nodes |
+| Channel | Discord bot | Free, role-based access separates customers from admins |
+| Relay | Node.js (`discord.js`, `axios`) | Discord has no native n8n trigger for incoming messages |
+| Chat model | [Groq](https://groq.com/) `openai/gpt-oss-120b`, fallback `openai/gpt-oss-20b` | Free tier with fast inference and tool calling; quotas are per model, so the fallback doubles capacity |
+| Embeddings | Google Gemini `gemini-embedding-001` (3072 dims) | Free API, no local model container |
+| Vector DB | [Qdrant](https://qdrant.tech/) (Docker) | Open source, light, semantic product search |
+| Database | PostgreSQL 16 (Docker) | Chat memory, product table, n8n's own data |
+| Catalog source | Google Sheets | One place for the non-technical team to edit products |
+| Packaging | Docker Compose | The whole stack starts with one command |
 
-### 0. Discord Relay Bot (Node.js)
-
-Karena n8n tidak menyediakan trigger native untuk mendengarkan pesan Discord secara real-time, dibangun service kecil terpisah:
-
-```
-Discord (pesan masuk — dari channel mana pun, customer atau admin)
-      ↓
-Bot Node.js (discord.js) — mendengarkan event messageCreate
-      ↓ (HTTP POST, satu webhook yang sama untuk semua channel)
-n8n Webhook Trigger — meneruskan ke Workflow 2 (Customer Agent)
-```
-
-Bot ini berjalan sebagai container Docker tersendiri, menggunakan library resmi `discord.js` untuk memastikan stabilitas jangka panjang. **Penting:** bot relay ini hanya mengenal **satu** endpoint webhook — pemisahan pesan admin vs customer terjadi **di dalam n8n**, bukan di level bot relay. Pendekatan ini dipilih agar bot relay tetap sederhana dan tidak perlu diubah setiap kali ada jenis channel baru di masa depan.
-
-### 1. Knowledge Feeder
-
-Bertugas memuat data katalog produk dari Google Sheets ke dalam Qdrant sebagai basis pengetahuan HUMI.
-
-```
-[Google Sheets: "Parfum (HMNS)"] ──┐
-[Google Sheets: "Home of Humans"] ─┤
-        ↓ (masing-masing jalur)
-[Code Node: gabungkan kolom jadi 1 blok teks per produk]
-        ↓
-[Embeddings Google Gemini — gemini-embedding-001, 3072 dimensi]
-        ↓
-[Qdrant: Insert ke collection terpisah]
-   ├─ hmns_parfum  (28 produk: EDP, EDT, Hair & Body Mist, Body Wash)
-   └─ hmns_home    (11 produk: Reed Diffuser, Multipurpose Spray)
-```
-
-Data dipisah menjadi dua *collection* terpisah agar pencarian semantik lebih presisi — pertanyaan soal "parfum badan" tidak akan tercampur dengan hasil "pengharum ruangan".
-
-![HUMI Knowledge Feeder](./HUMI%20Knowledge%20Feeder.png)
-
-### 2. Customer Agent
-
-Workflow utama yang menangani **seluruh pesan masuk dari Discord**, baik dari customer maupun admin. Workflow ini bertindak sebagai *router* utama.
-
-```
-[Webhook: terima pesan dari Discord Relay]
-        ↓
-[IF: pengirim memiliki role "HMNS-Admin"?]
-        │
-        ├─ Ya  ──▶ [Execute Workflow: panggil Workflow 3 — Admin Console]
-        │
-        └─ Tidak ──▶ [AI Agent Node]
-                         Model   : Google Gemini Chat Model (gemini-2.5-flash)
-                         Memory  : PostgreSQL (per Discord user ID)
-                         Tools   : 1) Cari Produk Parfum HMNS (Qdrant Vector Search)
-                                   2) Cari Produk Home of Humans (Qdrant Vector Search)
-                         Sistem Prompt: persona HUMI, gaya bahasa santai khas HMNS,
-                                        larangan keras mengarang data produk/klaim sensitif,
-                                        wajib memanggil tool sebelum menjawab soal produk,
-                                        wajib memanggil tool dalam giliran yang sama
-                                        (tidak boleh "menjanjikan cek" tanpa eksekusi),
-                                        maksimal 4-5 produk per balasan
-                              ↓
-                         [Code Node: pemecah pesan panjang]
-                            Memecah balasan >1900 karakter menjadi beberapa bagian,
-                            mencegah error "Invalid Form Body" dari limit 2000 karakter Discord
-                              ↓
-                         [Discord: kirim balasan ke channel asal]
-```
-
-![HUMI Customer Agent (with Product Search)](./HUMI%20Customer%20Agent%20%28with%20Product%20Search%29.png)
-
-### 3. Admin Console
-
-Dipicu sebagai **sub-workflow** dari Workflow 2 ketika pengirim pesan terdeteksi memiliki role admin. Pendekatan sub-workflow dipilih dibanding webhook terpisah agar bot relay Discord tetap sederhana (lihat bagian [Detail Implementasi](#-detail-implementasi-admin-console) untuk rinciannya).
-
-```
-[Execute Workflow Trigger: menerima data dari Workflow 2]
-        ↓
-[Code Node: Parse Command — pisahkan command (!stock, dst) dari argumennya]
-        ↓
-[Switch Node: routing berdasarkan command]
-        │
-        ├─ !stock <SKU> <jumlah>   → Update Postgres → balasan konfirmasi
-        ├─ !harga <SKU> <nominal>  → Update Postgres → balasan konfirmasi
-        ├─ !broadcast <teks>       → Discord: kirim ke #promo-customer
-        │                             → Discord: konfirmasi balik ke #admin-hmns
-        ├─ !status                 → Cek kesehatan sistem → balasan info
-        ├─ !log                    → Query Postgres agregat → ringkasan statistik
-        └─ (tidak dikenali)        → balasan daftar command yang tersedia
-```
-
-![HUMI Admin Console](./HUMI%20Admin%20Console.png)
+**What "free" means in practice.** Each Groq model allows 30 requests and 8,000 tokens per minute and 200,000 tokens per day on the free tier (as shown in the Groq console in October 2026). A customer question takes two model calls and about 7,000 tokens, so HUMI handles roughly **one question per minute per model (about two with the fallback) and around 55 questions a day**. When both models hit a limit, customers get a polite "HUMI is busy, try again in a minute" message and admins get an alert. Gemini's free chat quota (20 requests a day for `gemini-2.5-flash`) was too small for chat, so Gemini is only used for embeddings.
 
 ---
 
-## 🔧 Detail Implementasi: Admin Console
-
-Bagian ini mendokumentasikan secara teknis bagaimana Admin Console dihubungkan ke Customer Agent, termasuk konfigurasi yang perlu disetel manual di n8n (tidak otomatis terbawa saat import file workflow).
-
-### Mengapa Sub-Workflow, Bukan Webhook Terpisah?
-
-Dua pendekatan dipertimbangkan untuk memisahkan command admin dari percakapan customer biasa:
-
-| Pendekatan                                                     | Kelebihan                                                                                                  | Kekurangan                                                                                                                 |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| **Webhook terpisah** (bot relay kirim ke 2 endpoint berbeda)   | Pemisahan lebih "bersih" di level infrastruktur                                                            | Bot relay perlu logic tambahan untuk menentukan endpoint; setiap channel baru di masa depan butuh perubahan kode bot relay |
-| **Sub-workflow** (1 webhook, routing di dalam n8n) ✅ *dipilih* | Bot relay tetap sederhana selamanya; pola ini mudah direplikasi untuk kebutuhan routing lain di masa depan | Perlu konfigurasi *Workflow Input Schema* secara manual di n8n                                                             |
-
-### Konfigurasi Workflow Input Schema
-
-Node **Execute Workflow Trigger** di Workflow 3 (sebelumnya berupa Webhook node, diubah menjadi trigger sub-workflow) perlu didefinisikan skema input-nya secara manual melalui UI n8n, karena skema ini tidak otomatis tersimpan dalam representasi JSON yang portable. Field yang didefinisikan:
-
-| Field             | Tipe   | Sumber Data dari Workflow 2        |
-| ----------------- | ------ | ---------------------------------- |
-| `channel_id`      | String | `{{ $json.body.channel_id }}`      |
-| `content`         | String | `{{ $json.body.content }}`         |
-| `author_id`       | String | `{{ $json.body.author_id }}`       |
-| `author_username` | String | `{{ $json.body.author_username }}` |
-| `channel_name`    | String | `{{ $json.body.channel_name }}`    |
-
-Mapping ini diisi pada node **Execute Workflow** di Workflow 2 (bukan di Workflow 3), tepat sebelum sub-workflow dipanggil. Field-field inilah yang membawa konteks pesan Discord asli (isi command, channel asal, identitas pengirim) dari Workflow 2 menuju Workflow 3.
-
-### Catatan Teknis: Perubahan Struktur Data Setelah Melalui Execute Workflow
-
-Salah satu detail teknis yang penting dicatat: struktur data yang diterima oleh node-node di dalam Workflow 3 **berbeda** dari struktur data webhook mentah.
-
-- Pada Webhook node biasa, data pesan Discord dibungkus dalam objek `body` — misalnya `$json.body.content`.
-- Namun setelah data dipetakan secara eksplisit melalui *Workflow Input* pada node Execute Workflow (lihat tabel mapping di atas), data yang diterima oleh trigger sub-workflow di Workflow 3 sudah berbentuk **flat**, tanpa pembungkus `body` — sehingga menjadi `$json.content` saja.
-
-Akibatnya, kode pada node **Parse Command** yang awalnya ditulis dengan asumsi struktur webhook mentah:
-
-```javascript
-// Versi awal — sesuai untuk Webhook node langsung, TIDAK sesuai untuk sub-workflow
-const body = $input.first().json.body;
-```
-
-perlu disesuaikan menjadi:
-
-```javascript
-// Versi final — sesuai dengan struktur data hasil mapping Execute Workflow
-const body = $input.first().json;
-```
-
-Baris-baris kode berikutnya (pemisahan command dan argumen) tidak perlu diubah, karena seluruh referensi selanjutnya menggunakan variabel `body` yang sudah dikoreksi tersebut.
-
-### Routing Channel untuk `!broadcast`
-
-Command `!broadcast` memerlukan penanganan khusus karena, berbeda dengan command lain yang membalas ke channel asal (`#admin-hmns`), pesan broadcast harus diteruskan ke channel customer (`#promo-customer`). Implementasinya dipisah menjadi jalur Discord node tersendiri:
+## Repository layout
 
 ```
-Switch Command (case: !broadcast)
-        ↓
-Susun Pesan Broadcast (format teks pengumuman)
-        ↓
-Discord - Kirim Broadcast (channel ID di-hardcode ke #promo-customer)
-        ↓
-Konfirmasi Broadcast ke Admin (balasan "✅ Broadcast berhasil dikirim" ke channel asal command)
+.
+├── discord-relay/          # Node.js relay bot (Dockerfile, bot.js, package.json)
+├── n8n/workflows/          # The three n8n workflows (import these)
+├── postgres/init/          # 01_schema.sql, 02_seed_products.sql (run on an empty Postgres volume)
+├── prompts/
+│   └── customer-agent.md   # HUMI's system prompt (source of the AI Agent's system message)
+├── docs/PROGRESS.md        # Working plan and status log (Indonesian)
+├── docker-compose.yml
+└── env.example             # Every environment variable, with placeholders
 ```
 
-Pendekatan ini memberi admin kepastian (*feedback loop*) bahwa broadcast telah terkirim, tanpa harus berpindah channel untuk memverifikasi.
+---
 
-### Skema Tabel Pendukung
+## Getting started
 
-Command `!stock` dan `!harga` memerlukan tabel `products` di PostgreSQL:
+### Prerequisites
+
+- Docker Desktop (or Docker Engine with the Compose plugin)
+- A Discord server where you can add a bot
+- A Google account (Sheets, Google Cloud OAuth client, Gemini API key from Google AI Studio)
+- A Groq account (free API key from [console.groq.com](https://console.groq.com/keys))
+
+### 1. Discord
+
+1. Create an application and bot in the [Discord Developer Portal](https://discord.com/developers/applications). Under **Bot**, turn on **Message Content Intent**. Turn on **Server Members Intent** only if you want welcome messages.
+2. Invite the bot to your server with permission to read and send messages.
+3. Create the channels `#tanya-humi` (customers), `#admin-hmns` (private, admins only), `#promo-customer` (broadcast target) and optionally `#welcome`.
+4. Create the role `HMNS-Admin` and give it to your admins.
+
+### 2. Google Sheet
+
+Create a spreadsheet with two tabs, **Parfum (HMNS)** and **Home of Humans**, and these headers in row 1:
+
+| Tab | Headers |
+|---|---|
+| Parfum (HMNS) | `SKU, Name, Type, Size, Fragrance_Family, Mind_Notes, Heart_Notes, Soul_Notes, Description, Sillage, Projection, Longevity, Price, Web_Stock, Web_URL, Marketplace_URL, Source, Last_Updated` |
+| Home of Humans | `SKU, Name, Type, Size, Fragrance_Family, Mind_Notes, Heart_Notes, Soul_Notes, Description, Projection, Price, Web_Stock, Web_URL, Marketplace_URL, Source, Last_Updated` |
+
+`Web_Stock` uses `N pcs` or `Sold out`. Keep the sheet's sharing set to **Restricted**.
+
+### 3. Environment
+
+```bash
+cp env.example .env
+```
+
+Fill in `.env`. Only `POSTGRES_*`, `DISCORD_BOT_TOKEN`, `N8N_*` and the relay channel settings are read by the containers; the Gemini, Groq and Google OAuth values are kept there for safekeeping and are entered into n8n's credential store in step 5. Never commit `.env`.
+
+### 4. Start the stack
+
+```bash
+docker compose up -d
+```
+
+On the first start, PostgreSQL runs `postgres/init/*.sql`, which creates the `products` and `humi_chat_memory` tables and seeds 28 products. n8n is then available at <http://localhost:5678>; create the owner account.
+
+### 5. n8n credentials
+
+Create these credentials in n8n with **exactly these names**:
+
+| Name | Type | Values |
+|---|---|---|
+| `Discord Bot account` | Discord Bot API | Bot token |
+| `Groq account` | Groq API | Groq API key |
+| `Google Gemini(PaLM) Api account` | Google Gemini (PaLM) API | Gemini API key |
+| `Google Sheets account` | Google Sheets OAuth2 API | OAuth client ID and secret; add n8n's redirect URL (`http://localhost:5678/rest/oauth2-credential/callback`) to the client, then **Sign in with Google** |
+| `Postgres account` | Postgres | Host `postgres`, database `n8n`, port `5432`, SSL disabled, user and password from `.env` |
+| `Qdrant account` | Qdrant API | URL `http://qdrant:6333`, no API key |
+
+### 6. Import the workflows
+
+Import with the n8n CLI so the workflow IDs are kept (the Customer Agent calls the Admin Console by ID):
+
+```bash
+docker compose cp n8n/workflows/. n8n:/tmp/workflows
+docker compose exec n8n n8n import:workflow --separate --input=/tmp/workflows
+```
+
+Open each workflow; if a node shows a credential warning, select the credential with the same name. If you use your own Discord server or sheet, also update these IDs:
+
+| Where | What |
+|---|---|
+| Discord nodes in all workflows | Server (guild) |
+| `Discord - Send Escalation`, `Discord - Alert Admin`, `Discord - Report Sync` | `#admin-hmns` channel ID |
+| `Discord - Send Broadcast` | `#promo-customer` channel ID |
+| Google Sheets nodes | Spreadsheet and tabs |
+
+### 7. Publish and run the first sync
+
+1. Open **HUMI: Knowledge Feeder** and click **Execute workflow** once. `#admin-hmns` should show "🔄 Katalog HUMI tersinkron".
+2. **Publish** Knowledge Feeder, Admin Console and Customer Agent.
+3. Say hi in `#tanya-humi`, and try `!help` in `#admin-hmns`.
+
+Editing the system prompt: change `prompts/customer-agent.md`, then copy it into the **AI Agent - HUMI** node's system message, keeping the `## KONTEKS PESAN INI` block at the end, which fills in the user's name, first-chat flag, place and time.
+
+---
+
+## Admin commands
+
+Commands only work for the `HMNS-Admin` role in `#admin-hmns`. Replies are in Indonesian.
+
+| Command | What it does |
+|---|---|
+| `!stock <SKU> <qty>` | Sets web stock in Postgres and the sheet. Numbers become `N pcs`; `0` or `habis` become `Sold out`. Example: `!stock HMNS-PRF-001 25` |
+| `!harga <SKU> <price>` | Sets the price in Postgres and the sheet. Accepts `350000`, `350k` or `Rp350.000` |
+| `!broadcast <text>` | Posts an announcement to `#promo-customer` and confirms in `#admin-hmns` |
+| `!status` | Basic health check |
+| `!log` | Customer messages and unique users today, in the last 7 days and in total |
+| `!help` | Lists the commands |
+
+After `!stock` or `!harga`, the catalog sync runs right away and reports back in about a minute. Edits made directly in the sheet are picked up within 5 minutes.
+
+---
+
+## Data model
+
+**Google Sheet (source of truth).** 28 perfumes (`HMNS-PRF-001` to `HMNS-PRF-028`: eau de parfum, eau de toilette, extrait, hair & body mist, hair perfume, fragrance mist) and 11 Home of Humans products (reed diffusers, multipurpose sprays). Scent notes come from HMNS's official PDF catalogs; where no official data exists, the field is left empty instead of guessed.
+
+**PostgreSQL**
 
 ```sql
-CREATE TABLE IF NOT EXISTS products (
-    sku VARCHAR(50) PRIMARY KEY,
-    nama VARCHAR(255),
-    harga INTEGER,
-    stok_web VARCHAR(100)
+-- Mirror of the Perfume tab, kept in sync by the Knowledge Feeder; used by admin commands.
+CREATE TABLE products (
+    sku         VARCHAR(50) PRIMARY KEY,
+    name        VARCHAR(255),
+    price       INTEGER,
+    web_stock   VARCHAR(100),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Chat history for the Postgres Chat Memory node; created_at powers the !log statistics.
+CREATE TABLE humi_chat_memory (
+    id          SERIAL PRIMARY KEY,
+    session_id  VARCHAR(255) NOT NULL,
+    message     JSONB NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
 
-Tabel ini dibuat dan diisi data awal secara manual melalui node Postgres yang sama (dengan mengganti sementara isi query dan mengosongkan *Query Parameters*, lalu mengembalikannya setelah selesai) — pendekatan ini menghindari kebutuhan instalasi database client tambahan, cukup menggunakan node n8n yang sudah terhubung.
+Application tables live next to n8n's internal tables in the `n8n` database but are only touched by HUMI's workflows.
 
-> **Status saat ini:** tabel ini sudah dibuat dan digunakan secara aktif oleh command `!stock` dan `!harga`, dengan beberapa data produk awal yang diisi manual untuk keperluan pengujian. Sinkronisasi dua arah antara Google Sheets (sumber katalog) dan tabel `products` (sumber operasional admin) masih menjadi bagian dari roadmap pengembangan — saat ini keduanya berjalan sebagai dua sumber data yang independen.
-
-### Catatan Teknis: Struktur Tabel `humi_chat_memory`
-
-Command `!log` awalnya dirancang dengan asumsi tabel `humi_chat_memory` memiliki kolom timestamp (`created_at`) untuk memfilter statistik harian. Setelah diverifikasi langsung melalui query terhadap `information_schema.columns`, ditemukan bahwa tabel ini — yang dibuat otomatis oleh node **Postgres Chat Memory** di Workflow 2, bukan oleh developer secara manual — hanya memiliki tiga kolom:
-
-| Kolom        | Tipe Data         |
-| ------------ | ----------------- |
-| `id`         | integer           |
-| `session_id` | character varying |
-| `message`    | jsonb             |
-
-Tidak terdapat kolom waktu sama sekali. Query awal:
-
-```sql
--- Versi awal — gagal karena kolom created_at tidak ada
-SELECT COUNT(*) AS total_chat, COUNT(DISTINCT session_id) AS total_user
-FROM humi_chat_memory WHERE created_at >= NOW() - INTERVAL '1 day';
-```
-
-disesuaikan menjadi versi yang sesuai dengan struktur asli tabel, dengan konsekuensi bahwa statistik yang ditampilkan mencakup **seluruh riwayat percakapan**, bukan hanya hari ini:
-
-```sql
--- Versi final — sesuai struktur tabel yang sebenarnya
-SELECT COUNT(*) AS total_chat, COUNT(DISTINCT session_id) AS total_user
-FROM humi_chat_memory;
-```
-
-Penambahan kolom timestamp (misalnya melalui tabel log terpisah yang dicatat manual di setiap interaksi) tercatat sebagai salah satu item pada [Roadmap Selanjutnya](#-roadmap-selanjutnya).
+**Qdrant.** Two collections, `hmns_parfum` and `hmns_home`, so body-fragrance questions never return room diffusers. Each product is one vector; its text has labelled fields (`Product`, `Type`, `Fragrance Family`, notes, `Description`, `Price`, `Stock`, `Web URL`) and its metadata holds `sku`, `name`, `price`, `web_url`, `version` and `synced_at`.
 
 ---
 
-## 📊 Struktur Data Produk
+## Guardrails and design decisions
 
-Katalog produk disusun dalam Google Sheets dengan 3 tab:
-
-| Sheet                    | Isi                                                      | Jumlah Produk                              |
-| ------------------------ | -------------------------------------------------------- | ------------------------------------------ |
-| **Parfum (HMNS)**        | EDP, EDT, Extrait de Parfum, Hair & Body Mist, Body Wash | 28 produk (HMNS-PRF-001 s.d. HMNS-PRF-028) |
-| **Home of Humans**       | Reed Diffuser, Multipurpose Spray                        | 11 produk                                  |
-| **Catatan & Cara Pakai** | Dokumentasi sumber data, panduan pengisian kolom kosong  | —                                          |
-
-**Kolom utama** mencakup: SKU, Nama, Tipe, Ukuran, Family Aroma, Mind/Heart/Soul Notes, Deskripsi, Sillage, Projection, Longevity, Harga, Stok, Link Web, dan Link Marketplace.
-
-Data notes aroma (Mind/Heart/Soul Notes) diambil **langsung dari katalog resmi PDF HMNS dan Home of Humans** — bukan hasil tebakan AI — untuk memastikan deskripsi aroma yang disampaikan ke pelanggan akurat dan dapat dipertanggungjawabkan. Untuk produk yang tidak memiliki dokumentasi resmi, kolom notes **sengaja dikosongkan/ditandai** alih-alih diisi dengan asumsi.
+- **Tool-first answers.** The prompt requires a fresh catalog search for every product, price or stock question, even if the product came up earlier in the chat, and requires numbers to be copied from the same product block. This was added after HUMI once answered from chat history and mixed up two products' prices.
+- **Escalation, not improvisation.** Orders, payments, refunds and complaints always go to humans, and HUMI never asks for passwords, OTPs, PINs, card numbers or ID photos.
+- **Every failure ends in a reply.** Model fallback, retries, a polite error branch and an hourly admin alert mean a customer never waits on a silent bot.
+- **One webhook, routing in n8n.** The relay stays simple; admin vs customer routing happens in the Customer Agent, and the Admin Console is a sub-workflow.
+- **Sheet as the single source of truth.** Admin commands write to both Postgres and the sheet, and the sync job rebuilds HUMI's knowledge from the sheet, so the two can't drift apart.
+- **Token budget.** To fit Groq's 8K tokens-per-minute limit, the prompt was compacted from about 9,000 to 5,400 characters, search returns 4 + 3 products, memory keeps the last 4 messages, and marketplace links live once in the prompt instead of in every product document.
 
 ---
 
-## ✨ Fitur Utama
+## Project status
 
-**Sisi Customer:**
-- 🔍 **Rekomendasi berbasis vibe/aroma** — pelanggan menyebutkan mood atau kebutuhan, HUMI mencari produk paling relevan lewat *semantic search*, lengkap dengan harga dan link pembelian.
-- 🆚 **Perbandingan produk** — membandingkan dua atau lebih produk dari segi family aroma, harga, dan kecocokan kebutuhan.
-- 🚫 **Anti-halusinasi** — sistem prompt secara eksplisit melarang HUMI mengklaim hal sensitif (BPOM, halal, efek medis) atau menebak status pesanan tanpa data yang terverifikasi.
-- 📦 **Kesadaran stok** — HUMI menyampaikan status stok terbaru secara jujur, termasuk ketika produk tidak tersedia.
-- 🔁 **Manajemen pesan panjang** — balasan yang melebihi limit karakter Discord otomatis dipecah menjadi beberapa bagian tanpa memutus konteks kalimat.
-- 🧠 **Memori percakapan** — riwayat chat per pengguna disimpan di PostgreSQL, memungkinkan percakapan lanjutan yang kontekstual.
-- 🔗 **Tautan langsung yang dapat diklik** — seluruh link produk diformat lengkap dengan `https://` agar dapat langsung dibuka dari Discord.
+| Component | Status |
+|---|---|
+| Discord relay (channel routing, typing indicator, rate limit) | ✅ Done and tested |
+| Customer Agent on Groq with fallback and error branch | ✅ Done and tested |
+| Escalation alerts to `#admin-hmns` | ✅ Done and tested |
+| Admin Console (`!stock`, `!harga`, `!broadcast`, `!status`, `!log`, `!help`) | ✅ Done and tested |
+| Automatic catalog sync (sheet ↔ Postgres ↔ Qdrant) | ✅ Done and tested |
+| Database schema and seed in `postgres/init/` | ✅ Done |
+| First-chat greeting | ✅ Built; still to be confirmed with a brand-new Discord account |
+| Welcome message for new members | 🔄 Built; waiting for Server Members Intent |
+| `!takeover`, `!release`, `!flagged`, `!resetmemory` | ⬜ Planned |
+| Evaluation set and score | ⬜ Planned |
+| 24/7 hosting and public chat widget | ⬜ Planned (Oracle Cloud Always Free + Cloudflare Tunnel) |
+| Real inventory data | ⚠️ Stock values are demo data |
 
-**Sisi Admin:**
-- 📢 **Broadcast satu arah ke channel customer** (`!broadcast`) — admin mengetik dari channel khusus, pesan otomatis tersalur ke channel publik, dengan konfirmasi pengiriman.
-- 📦 **Update stok & harga** (`!stock`, `!harga`) — operasional dasar tanpa perlu membuka Google Sheets secara manual.
-- 🩺 **Pemantauan kesehatan sistem** (`!status`) — cek cepat apakah n8n dan workflow berjalan normal.
-- 📊 **Ringkasan log percakapan** (`!log`) — statistik dasar volume chat harian.
-- 🔐 **Akses berbasis role** — seluruh command admin hanya dapat dijalankan oleh akun dengan role `HMNS-Admin`, dan channel `#admin-hmns` disetel privat agar tidak terlihat oleh customer.
-
----
-
-## 🚦 Status Pengembangan
-
-| Komponen                                       | Status                                                                                                             |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Discord Bot & Relay Service                    | ✅ Selesai & berjalan stabil                                                                                        |
-| Integrasi Google Gemini API                    | ✅ Selesai                                                                                                          |
-| Knowledge Feeder (Google Sheets → Qdrant)      | ✅ Selesai, 39 produk terindeks                                                                                     |
-| Customer Agent dengan Vector Search            | ✅ Selesai & teruji                                                                                                 |
-| Penanganan pesan panjang (anti-error Discord)  | ✅ Selesai                                                                                                          |
-| Data katalog (notes aroma, harga, link produk) | ✅ Terverifikasi dari sumber resmi                                                                                  |
-| Admin Console — routing sub-workflow           | ✅ Selesai & teruji                                                                                                 |
-| Admin Console — `!status`                      | ✅ Teruji                                                                                                           |
-| Admin Console — `!broadcast`                   | ✅ Teruji (terkirim ke #promo-customer + konfirmasi ke admin)                                                       |
-| Admin Console — `!log`                         | ✅ Teruji (catatan: tabel memori tidak menyimpan timestamp, statistik mencakup seluruh riwayat, bukan hanya harian) |
-| Admin Console — `!stock`                       | ✅ Teruji                                                                                                           |
-| Admin Console — `!harga`                       | ✅ Teruji                                                                                                           |
-| Tabel `products` (Postgres)                    | ✅ Dibuat & terisi data awal                                                                                        |
-| Sinkronisasi tabel `products` ↔ Google Sheets  | 📋 Direncanakan                                                                                                     |
-| Data stok real-time dari sistem inventory asli | ⚠️ Saat ini menggunakan data dummy untuk keperluan testing                                                          |
-| Dashboard analitik                             | 📋 Direncanakan                                                                                                     |
+The detailed working plan and change log (in Indonesian) is in [docs/PROGRESS.md](docs/PROGRESS.md).
 
 ---
 
-## 🧩 Tantangan & Pembelajaran
+## Challenges and lessons learned
 
-Beberapa kendala teknis nyata yang ditemukan dan diselesaikan selama pengembangan, dicatat sebagai bagian dari proses pembelajaran:
-
-- **Discord tidak memiliki trigger native di n8n** — diselesaikan dengan membangun *relay service* terpisah menggunakan `discord.js`, alih-alih mengandalkan community node pihak ketiga yang rawan terhenti dukungannya.
-- **Perubahan format API key Gemini** — Google memperbarui format API key dari `AIza...` menjadi `AQ.Ab...`; perlu verifikasi ulang kompatibilitas dengan credential native n8n.
-- **Mismatch dimensi vector embedding** — model embedding awal yang direncanakan (`text-embedding-004`) telah usang, digantikan `gemini-embedding-001` yang berdimensi 3072 (bukan 768), sehingga *collection* Qdrant perlu disesuaikan ulang.
-- **AI Agent "menjanjikan" tindakan tanpa eksekusi** — pada kondisi tertentu, model sempat menulis kalimat seperti "coba HUMI cek dulu ya" tanpa benar-benar memanggil tool pencarian, menyebabkan balasan kosong pada giliran berikutnya. Diselesaikan dengan memperketat instruksi sistem agar pemanggilan tool terjadi dalam giliran yang sama dengan pernyataan tersebut.
-- **Limit karakter Discord (2000 karakter)** — permintaan pelanggan untuk menampilkan seluruh katalog berisiko menghasilkan balasan yang melebihi limit API Discord. Diselesaikan dengan kombinasi pembatasan di sistem prompt (maksimal 4-5 produk per balasan) dan mekanisme pemecah pesan otomatis sebagai pengaman teknis.
-- **Perubahan struktur data saat melewati Execute Workflow node** — data yang awalnya dibungkus dalam objek `body` (format webhook standar) berubah menjadi struktur *flat* setelah dipetakan secara eksplisit melalui *Workflow Input Schema* pada node Execute Workflow. Kode parsing yang awalnya berasumsi struktur webhook mentah (`$json.body.content`) perlu disesuaikan menjadi struktur flat (`$json.content`) — detail lengkap dijelaskan di bagian [Detail Implementasi: Admin Console](#-detail-implementasi-admin-console).
-- **Pemilihan arsitektur routing admin vs customer** — dipertimbangkan antara membuat webhook terpisah untuk channel admin atau melakukan routing di dalam satu workflow. Pendekatan *sub-workflow* dipilih agar bot relay Discord tidak perlu diubah setiap kali ada kebutuhan routing baru di masa depan.
-- **Validasi data katalog** — beberapa data produk yang awalnya diestimasi otomatis (notes aroma, link individual produk) digantikan dengan data resmi dari katalog PDF HMNS begitu tersedia, untuk menjaga akurasi informasi yang disampaikan ke pelanggan.
-- **Struktur tabel memori yang dibuat otomatis oleh n8n** — tabel `humi_chat_memory` (digunakan oleh node Postgres Chat Memory) dibuat otomatis dengan struktur minimal: hanya kolom `id`, `session_id`, dan `message` (tipe `jsonb`) — tanpa kolom timestamp. Query awal untuk command `!log` yang berasumsi adanya kolom `created_at` (untuk memfilter statistik harian) gagal dieksekusi. Diselesaikan dengan memverifikasi struktur kolom asli melalui query `information_schema.columns` terlebih dahulu, lalu menyesuaikan query menjadi statistik akumulasi total riwayat alih-alih statistik harian.
-- **Pengujian node pada workflow bercabang (Switch/IF)** — node-node yang berada di salah satu cabang `Switch Command` (misalnya node khusus untuk `!stock`) tidak dapat diuji secara langsung melalui tombol "Execute step" pada node tersebut apabila dijalankan secara terisolasi, karena n8n memerlukan jalur eksekusi yang valid dari trigger awal. Solusi yang lebih andal adalah menguji melalui jalur asli (mengirim command sungguhan dari Discord) dibandingkan mencoba mengeksekusi node secara manual satu per satu.
-
----
-
-## 🗺️ Roadmap Selanjutnya
-
-- [ ] Sinkronisasi dua arah antara tabel `products` (Postgres) dan Google Sheets, agar update lewat `!stock`/`!harga` tercermin di katalog utama yang digunakan Knowledge Feeder
-- [ ] Menambahkan kolom timestamp pada tabel `humi_chat_memory` agar statistik `!log` dapat dipecah per periode (harian/mingguan), bukan hanya akumulasi total riwayat
-- [ ] Mengisi tabel `products` dengan seluruh 28 SKU dari katalog Parfum (HMNS), saat ini hanya berisi data awal untuk keperluan pengujian
-- [ ] Integrasi data stok real-time dari sistem inventory HMNS (menggantikan data dummy)
-- [ ] Fitur eskalasi otomatis ke admin manusia untuk pertanyaan kompleks (status pesanan, komplain)
-- [ ] Command tambahan: `!takeover`, `!release`, `!resetmemory`, `!flagged` sesuai rancangan awal
-- [ ] Dashboard analitik sederhana (tren pertanyaan, tingkat eskalasi, estimasi konversi)
-- [ ] Slash command Discord (`/rekomendasi`, `/cekstok`) untuk UI interaktif yang lebih kaya
-- [ ] Adaptasi multi-channel (WhatsApp/Telegram) dengan basis logic AI Agent yang sama
+- **No native Discord trigger in n8n.** Solved with a small `discord.js` relay instead of a third-party community node that might stop being maintained.
+- **Gemini API key format change.** Google moved from `AIza...` keys to `AQ.Ab...` keys; compatibility with n8n's credential had to be re-checked.
+- **Embedding dimension mismatch.** The planned `text-embedding-004` was retired; `gemini-embedding-001` has 3072 dimensions instead of 768, so the Qdrant collections had to be recreated.
+- **Agent "promising" a search without doing it.** The model sometimes wrote "let me check" without calling a tool, which left the next turn empty. The prompt now requires the tool call in the same turn.
+- **Discord's 2,000-character limit.** Full-catalog requests could overflow it. The prompt caps the number of products, and a code node splits long replies on line breaks.
+- **Data shape changes through Execute Workflow.** Mapped workflow inputs arrive flat (`$json.content`) instead of wrapped in `body`, so the command parser had to be adjusted.
+- **An admin check that was always false.** The `IF - Is Admin?` node compared one long text expression against the word "false", so every admin command went to the AI. It was rebuilt as two real conditions (role contains `HMNS-Admin`, channel equals `admin-hmns`).
+- **Schema drift.** The documented `products` table had no `updated_at` column although `!stock` and `!harga` set it; that was the cause of the old "stock update fails" note. The schema now lives in `postgres/init/` and matches the queries.
+- **Auto-created memory table without timestamps.** n8n's chat-memory node creates `humi_chat_memory` without a time column. Creating the table first with `created_at` made daily and weekly `!log` stats possible.
+- **Testing branched workflows.** Nodes behind a Switch or IF can't be tested in isolation; real Discord messages through the full trigger path are the reliable test.
+- **Answers from memory instead of data.** HUMI once recommended a product with another product's price and stock because it skipped the search and reused chat history. Fixed with stricter tool rules and a lower temperature, and confirmed in follow-up tests.
+- **Duplicate vectors from repeated syncs.** Two manual runs with identical data left two copies of every product, because cleanup only removed *other* catalog versions. Vectors are now tagged with the run's start time and cleanup removes everything older; the filter was dry-run with a count query before use.
+- **Free-tier reality.** Gemini's free chat quota turned out to be 20 requests a day, and Groq's real limit is tokens per minute, not requests. Measuring actual token use per question (about 7,000) led to the token diet, the second model as fallback, rate-limit-aware error messages and retries.
 
 ---
 
-## ⚠️ Disclaimer
+## Roadmap
 
-- Project ini dikembangkan atas **inisiatif pribadi** sebagai bagian dari eksplorasi teknis dan portofolio.
-- Seluruh data produk yang digunakan bersumber dari **materi katalog resmi publik HMNS** dan halaman website resmi (madeforhmns.com).
-- Status stok yang ditampilkan dalam tahap pengembangan ini menggunakan **data dummy** untuk keperluan pengujian sistem, dan **belum mencerminkan stok aktual** hingga terintegrasi dengan sistem inventory resmi.
-- Project ini bukan merupakan produk resmi atau yang disponsori oleh HMNS Perfume.
+- [ ] Confirm the first-chat greeting with a new account and enable the welcome message
+- [ ] `!takeover`, `!release` and `!flagged` for human hand-off, and `!resetmemory`
+- [ ] Evaluation set of about 30 questions (recommendations, refusals, stock honesty) with an automated score in this README
+- [ ] Admin guide for non-technical staff
+- [ ] Updated screenshots and a 1–2 minute demo video
+- [ ] 24/7 hosting on Oracle Cloud Always Free with Cloudflare Tunnel, plus a public chat widget on the portfolio site
+- [ ] Discord slash commands (`/rekomendasi`, `/cekstok`)
+- [ ] Simple analytics dashboard (question trends, escalations)
+- [ ] Real-time stock from HMNS's inventory system (replacing demo data)
+- [ ] Other channels (WhatsApp, Telegram) on the same agent logic
 
 ---
 
-## 👨‍💻 Identitas Developer
+## Disclaimer
+
+- This is a **personal project** built for technical exploration and a portfolio.
+- Product data comes from **HMNS's public catalog material** and the official website (madeforhmns.com).
+- **Stock values are demo data** and do not reflect real inventory.
+- This project is not an official product of, or sponsored by, HMNS Perfume.
+
+---
+
+## Author
 
 **Al Fitra Nur Ramadhani**
 *Data & Automation Enthusiast*
@@ -435,7 +415,7 @@ Beberapa kendala teknis nyata yang ditemukan dan diselesaikan selama pengembanga
 - 🐙 GitHub: [github.com/alfitranurr](https://github.com/alfitranurr)
 - 💼 LinkedIn: [linkedin.com/in/al-fitra-nur-ramadhani](https://www.linkedin.com/in/al-fitra-nur-ramadhani/)
 - 📧 Email: [alfitranurr@gmail.com](mailto:alfitranurr@gmail.com)
-- 🌐 Website Personal: [alfitranurr.vercel.app](https://alfitranurr.vercel.app/)
+- 🌐 Website: [alfitranurr.vercel.app](https://alfitranurr.vercel.app/)
 
 ---
 

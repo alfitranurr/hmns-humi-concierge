@@ -4,7 +4,7 @@
     {
       "parameters": {},
       "id": "3b79dc59-59ef-440b-8ce2-0ea3fa168c4a",
-      "name": "Manual Trigger (Test)",
+      "name": "Manual Trigger (Force Sync)",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
@@ -14,12 +14,12 @@
     },
     {
       "parameters": {
-        "content": "## Cara pakai\n1. Klik 'Execute workflow' / 'Test workflow' untuk jalan manual dulu.\n2. Kalau sudah yakin hasilnya benar, ganti Manual Trigger ini dengan Schedule Trigger (misal tiap 1 jam) supaya update otomatis.\n3. Jalur atas = Parfum (HMNS) -> collection 'hmns_parfum'\n   Jalur bawah = Home of Humans -> collection 'hmns_home'",
+        "content": "## Automatic catalog sync\nRuns every 5 minutes and right after an admin uses !stock / !harga.\n1. Read both sheet tabs. If nothing changed since the last sync, stop (no Gemini calls).\n2. On change: upsert the products table, write a new vector version to Qdrant,\n   then delete every vector older than this run (HUMI never loses product data, no duplicates).\n3. Report to #admin-hmns.\nManual Trigger = force a full re-sync.",
         "height": 220,
         "width": 320
       },
       "id": "55a0e024-0df3-467e-896c-ef40d37930db",
-      "name": "Catatan",
+      "name": "Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -44,12 +44,12 @@
         "options": {}
       },
       "id": "f7d78ce7-4f39-4681-a7be-04cebf748fbd",
-      "name": "Read Sheet - Parfum",
+      "name": "Read Sheet - Perfume",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
         2112,
-        608
+        896
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -79,40 +79,41 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        2112,
-        1152
+        2336,
+        896
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "d9nHB0FWrysc1mxy",
           "name": "Google Sheets account"
         }
-      }
+      },
+      "executeOnce": true
     },
     {
       "parameters": {
-        "jsCode": "// Gabungkan semua kolom produk Parfum jadi 1 blok teks yang siap di-embed\nconst items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const d = item.json;\n\n  // Lewati baris kosong/tanpa nama\n  if (!d.Nama) continue;\n\n  const teks = `Produk: ${d.Nama || ''}\nTipe: ${d.Tipe || ''}\nUkuran: ${d.Ukuran || ''}\nFamily Aroma: ${d.Family_Aroma || ''}\nMind Notes: ${d.Mind_Notes || ''}\nHeart Notes: ${d.Heart_Notes || ''}\nSoul Notes: ${d.Soul_Notes || ''}\nDeskripsi: ${d.Deskripsi || ''}\nSillage: ${d.Sillage || ''}\nProjection: ${d.Projection || ''}\nLongevity: ${d.Longevity || ''}\nHarga: Rp${d.Harga || ''}\nStok: ${d.Stok_Web || ''}\nLink Web: ${d.Link_Web || ''}\nLink Marketplace: ${d.Link_Marketplace || ''}`.trim();\n\n  output.push({\n    json: {\n      sku: d.SKU || '',\n      nama: d.Nama || '',\n      harga: d.Harga || '',\n      link_web: d.Link_Web || '',\n      text: teks,\n      collection: 'hmns_parfum'\n    }\n  });\n}\n\nreturn output;"
+        "jsCode": "// Turn each catalog row into one text block for embedding, tagged with the catalog version and sync time.\nconst { version, synced_at } = $('Detect Catalog Changes').first().json;\nconst output = [];\n\nfor (const item of $('Read Sheet - Perfume').all()) {\n  const d = item.json;\n\n  // Skip empty rows or rows without a name\n  if (!d.Name) continue;\n\n  const text = `Product: ${d.Name || ''}\nType: ${d.Type || ''}\nSize: ${d.Size || ''}\nFragrance Family: ${d.Fragrance_Family || ''}\nMind Notes: ${d.Mind_Notes || ''}\nHeart Notes: ${d.Heart_Notes || ''}\nSoul Notes: ${d.Soul_Notes || ''}\nDescription: ${d.Description || ''}\nSillage: ${d.Sillage || ''}\nProjection: ${d.Projection || ''}\nLongevity: ${d.Longevity || ''}\nPrice: Rp${d.Price || ''}\nStock: ${d.Web_Stock || ''}\nWeb URL: ${d.Web_URL || ''}`.trim();\n\n  output.push({\n    json: {\n      sku: d.SKU || '',\n      name: d.Name || '',\n      price: d.Price || '',\n      web_url: d.Web_URL || '',\n      text,\n      version,\n      synced_at,\n      collection: 'hmns_parfum'\n    }\n  });\n}\n\nreturn output;"
       },
       "id": "03ad9d5b-0ebf-4a00-a34f-76f140fb7aca",
-      "name": "Gabungkan Teks - Parfum",
+      "name": "Build Document - Perfume",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2352,
-        608
+        3232,
+        896
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Gabungkan semua kolom produk Home of Humans jadi 1 blok teks yang siap di-embed\nconst items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const d = item.json;\n\n  if (!d.Nama) continue;\n\n  const teks = `Produk: ${d.Nama || ''}\nTipe: ${d.Tipe || ''}\nUkuran: ${d.Ukuran || ''}\nFamily Aroma: ${d.Family_Aroma || ''}\nMind Notes: ${d.Mind_Notes || ''}\nHeart Notes: ${d.Heart_Notes || ''}\nSoul Notes: ${d.Soul_Notes || ''}\nDeskripsi: ${d.Deskripsi || ''}\nProjection: ${d.Projection || ''}\nHarga: Rp${d.Harga || ''}\nStok: ${d.Stok_Web || ''}\nLink Web: ${d.Link_Web || ''}\nLink Marketplace: ${d.Link_Marketplace || ''}`.trim();\n\n  output.push({\n    json: {\n      sku: d.SKU || '',\n      nama: d.Nama || '',\n      harga: d.Harga || '',\n      link_web: d.Link_Web || '',\n      text: teks,\n      collection: 'hmns_home'\n    }\n  });\n}\n\nreturn output;"
+        "jsCode": "// Turn each catalog row into one text block for embedding, tagged with the catalog version and sync time.\nconst { version, synced_at } = $('Detect Catalog Changes').first().json;\nconst output = [];\n\nfor (const item of $('Read Sheet - Home of Humans').all()) {\n  const d = item.json;\n\n  // Skip empty rows or rows without a name\n  if (!d.Name) continue;\n\n  const text = `Product: ${d.Name || ''}\nType: ${d.Type || ''}\nSize: ${d.Size || ''}\nFragrance Family: ${d.Fragrance_Family || ''}\nMind Notes: ${d.Mind_Notes || ''}\nHeart Notes: ${d.Heart_Notes || ''}\nSoul Notes: ${d.Soul_Notes || ''}\nDescription: ${d.Description || ''}\nProjection: ${d.Projection || ''}\nPrice: Rp${d.Price || ''}\nStock: ${d.Web_Stock || ''}\nWeb URL: ${d.Web_URL || ''}`.trim();\n\n  output.push({\n    json: {\n      sku: d.SKU || '',\n      name: d.Name || '',\n      price: d.Price || '',\n      web_url: d.Web_URL || '',\n      text,\n      version,\n      synced_at,\n      collection: 'hmns_home'\n    }\n  });\n}\n\nreturn output;"
       },
       "id": "5e285668-f6a7-4894-9d65-01eca443c805",
-      "name": "Gabungkan Teks - Home",
+      "name": "Build Document - Home",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2352,
-        1152
+        3712,
+        896
       ]
     },
     {
@@ -127,12 +128,12 @@
         "options": {}
       },
       "id": "238d4698-a07d-47e1-acac-abc32931994d",
-      "name": "Qdrant - Insert Parfum",
+      "name": "Qdrant - Insert Perfume",
       "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
       "typeVersion": 1.1,
       "position": [
-        2624,
-        608
+        3472,
+        896
       ],
       "credentials": {
         "qdrantApi": {
@@ -157,8 +158,8 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
       "typeVersion": 1.1,
       "position": [
-        2624,
-        1152
+        3952,
+        896
       ],
       "credentials": {
         "qdrantApi": {
@@ -170,12 +171,12 @@
     {
       "parameters": {},
       "id": "73a5ec16-0af6-41b3-991f-87b6076a1bda",
-      "name": "Embeddings Gemini - Parfum",
+      "name": "Gemini Embeddings - Perfume",
       "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
       "typeVersion": 1,
       "position": [
-        2560,
-        784
+        3408,
+        1088
       ],
       "credentials": {
         "googlePalmApi": {
@@ -187,12 +188,12 @@
     {
       "parameters": {},
       "id": "95157a61-d5cf-4011-a6e2-a9c5cddd8d42",
-      "name": "Embeddings Gemini - Home",
+      "name": "Gemini Embeddings - Home",
       "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
       "typeVersion": 1,
       "position": [
-        2560,
-        1312
+        3888,
+        1088
       ],
       "credentials": {
         "googlePalmApi": {
@@ -213,28 +214,36 @@
                 "value": "={{ $json.sku }}"
               },
               {
-                "name": "nama",
-                "value": "={{ $json.nama }}"
+                "name": "name",
+                "value": "={{ $json.name }}"
               },
               {
-                "name": "harga",
-                "value": "={{ $json.harga }}"
+                "name": "price",
+                "value": "={{ $json.price }}"
               },
               {
-                "name": "link_web",
-                "value": "={{ $json.link_web }}"
+                "name": "web_url",
+                "value": "={{ $json.web_url }}"
+              },
+              {
+                "name": "version",
+                "value": "={{ $json.version }}"
+              },
+              {
+                "name": "synced_at",
+                "value": "={{ $json.synced_at }}"
               }
             ]
           }
         }
       },
       "id": "677cab98-c083-4ea2-b596-1ff4657c401c",
-      "name": "Document Loader - Parfum",
+      "name": "Document Loader - Perfume",
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
       "typeVersion": 1,
       "position": [
-        2704,
-        784
+        3552,
+        1088
       ]
     },
     {
@@ -249,16 +258,24 @@
                 "value": "={{ $json.sku }}"
               },
               {
-                "name": "nama",
-                "value": "={{ $json.nama }}"
+                "name": "name",
+                "value": "={{ $json.name }}"
               },
               {
-                "name": "harga",
-                "value": "={{ $json.harga }}"
+                "name": "price",
+                "value": "={{ $json.price }}"
               },
               {
-                "name": "link_web",
-                "value": "={{ $json.link_web }}"
+                "name": "web_url",
+                "value": "={{ $json.web_url }}"
+              },
+              {
+                "name": "version",
+                "value": "={{ $json.version }}"
+              },
+              {
+                "name": "synced_at",
+                "value": "={{ $json.synced_at }}"
               }
             ]
           }
@@ -269,8 +286,8 @@
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
       "typeVersion": 1,
       "position": [
-        2704,
-        1312
+        4032,
+        1088
       ]
     },
     {
@@ -280,11 +297,11 @@
       "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
       "typeVersion": 1,
       "position": [
-        2704,
-        976
+        3552,
+        1280
       ],
       "id": "8eea48dd-b823-41be-8897-2fd426eae56c",
-      "name": "Recursive Character Text Splitter"
+      "name": "Text Splitter - Perfume"
     },
     {
       "parameters": {
@@ -293,23 +310,196 @@
       "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
       "typeVersion": 1,
       "position": [
-        2704,
-        1504
+        4032,
+        1280
       ],
       "id": "8b7fb3f5-34d9-4833-b01c-932d674180e5",
-      "name": "Recursive Character Text Splitter1"
+      "name": "Text Splitter - Home"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "168e0467-7f33-4941-8eaf-75c94203809f",
+      "name": "Schedule - Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1872,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "d1a340b4-e62c-4987-9bce-5802b01bb5be",
+      "name": "Called by Admin Console",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        1872,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compare the sheet with the last sync. If nothing changed, stop here so no Gemini quota is used.\nconst perfume = $('Read Sheet - Perfume').all().map((i) => i.json).filter((r) => r.SKU && r.Name);\nconst home = $('Read Sheet - Home of Humans').all().map((i) => i.json).filter((r) => r.SKU && r.Name);\n\n// Empty or unreadable sheet: leave Qdrant and the products table untouched.\nif (perfume.length === 0 || home.length === 0) {\n  throw new Error(`Sheet is empty or unreadable (perfume ${perfume.length}, home ${home.length}). Sync cancelled.`);\n}\n\nconst snapshot = JSON.stringify({ perfume, home });\nlet hash = 5381;\nfor (let i = 0; i < snapshot.length; i++) {\n  hash = ((hash << 5) + hash + snapshot.charCodeAt(i)) | 0;\n}\nconst version = `${(hash >>> 0).toString(16)}-${snapshot.length}`;\n\nconst state = $getWorkflowStaticData('global');\n// Any run started from the editor (whichever trigger) counts as a manual, forced sync.\nconst manual = $execution.mode === 'test' || $('Manual Trigger (Force Sync)').isExecuted;\nif (!manual && state.catalogVersion === version) {\n  return [];\n}\n\n// The reason is shown to admins, so it stays in Indonesian.\nlet reason = 'sheet berubah';\nif (manual) reason = 'dijalankan manual';\nelse if ($('Called by Admin Console').isExecuted) reason = 'update dari command admin';\nelse if (!state.catalogVersion) reason = 'sinkron pertama';\n\n// Every vector written by this run is tagged with synced_at; cleanup later removes anything older,\n// so the newest run always survives and repeated or overlapping runs never leave duplicates.\nreturn [{ json: { version, synced_at: Date.now(), reason, perfume_count: perfume.length, home_count: home.length } }];"
+      },
+      "id": "fca04231-790c-44ee-8546-18c9f5fb5822",
+      "name": "Detect Catalog Changes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Perfume tab rows -> products table (used by admin commands)\nreturn $('Read Sheet - Perfume').all()\n  .map((i) => i.json)\n  .filter((r) => r.SKU && r.Name)\n  .map((r) => ({\n    json: {\n      sku: String(r.SKU).trim(),\n      name: String(r.Name).trim(),\n      price: Number(String(r.Price).replace(/[^0-9]/g, '')) || null,\n      web_stock: String(r.Web_Stock ?? '').trim(),\n    },\n  }));"
+      },
+      "id": "97ad2d77-5c11-4a43-a64b-da39ca73cdff",
+      "name": "Prepare Product Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2784,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO products (sku, name, price, web_stock, updated_at)\nVALUES ($1, $2, $3, $4, now())\nON CONFLICT (sku) DO UPDATE\nSET name = EXCLUDED.name, price = EXCLUDED.price, web_stock = EXCLUDED.web_stock, updated_at = now()\nWHERE (products.name, products.price, products.web_stock)\n      IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.price, EXCLUDED.web_stock);",
+        "options": {
+          "queryReplacement": "={{ [$json.sku, $json.name, $json.price, $json.web_stock] }}"
+        }
+      },
+      "id": "61a9a407-1efc-4698-ad0f-efba671511b0",
+      "name": "Upsert Products Table",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3008,
+        896
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgresAccount",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/hmns_parfum/points/delete?wait=true",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filter: { should: [ { key: 'metadata.synced_at', range: { lt: $('Detect Catalog Changes').first().json.synced_at } }, { is_empty: { key: 'metadata.synced_at' } } ] } }) }}",
+        "options": {}
+      },
+      "id": "48b9791a-3388-4e15-9ca8-0257e33ad3aa",
+      "name": "Delete Old Version - Perfume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4192,
+        896
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/hmns_home/points/delete?wait=true",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filter: { should: [ { key: 'metadata.synced_at', range: { lt: $('Detect Catalog Changes').first().json.synced_at } }, { is_empty: { key: 'metadata.synced_at' } } ] } }) }}",
+        "options": {}
+      },
+      "id": "94c41c51-560c-4414-b1e5-6ebd8bec8290",
+      "name": "Delete Old Version - Home",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4416,
+        896
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Remember which catalog version is in Qdrant, then build the report for admins (in Indonesian)\nconst info = $('Detect Catalog Changes').first().json;\nconst state = $getWorkflowStaticData('global');\nstate.catalogVersion = info.version;\nstate.lastSyncAt = new Date().toISOString();\n\nconst time = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });\nconst report = [\n  `🔄 **Katalog HUMI tersinkron** (${info.reason})`,\n  `${info.perfume_count} parfum + ${info.home_count} Home of Humans sudah dipakai HUMI untuk jawab customer.`,\n  `🕐 ${time} WIB`,\n].join('\\n');\n\nreturn [{ json: { ...info, report } }];"
+      },
+      "id": "346b6f36-5bc8-414e-b2d3-510ed8652997",
+      "name": "Save Sync State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4640,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1519735726067945573",
+          "mode": "list",
+          "cachedResultName": "n8n Projects",
+          "cachedResultUrl": "https://discord.com/channels/1519735726067945573"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1520652909132386356",
+          "mode": "id"
+        },
+        "content": "={{ $json.report }}",
+        "options": {}
+      },
+      "id": "beb3601c-5c9c-475f-935f-f2a77c0bc083",
+      "name": "Discord - Report Sync",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        4864,
+        896
+      ],
+      "credentials": {
+        "discordBotApi": {
+          "id": "discordBotAccount",
+          "name": "Discord Bot account"
+        }
+      }
     }
   ],
   "pinData": {},
   "connections": {
-    "Manual Trigger (Test)": {
+    "Manual Trigger (Force Sync)": {
       "main": [
         [
           {
-            "node": "Read Sheet - Parfum",
+            "node": "Read Sheet - Perfume",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Read Sheet - Perfume": {
+      "main": [
+        [
           {
             "node": "Read Sheet - Home of Humans",
             "type": "main",
@@ -318,40 +508,18 @@
         ]
       ]
     },
-    "Read Sheet - Parfum": {
+    "Build Document - Perfume": {
       "main": [
         [
           {
-            "node": "Gabungkan Teks - Parfum",
+            "node": "Qdrant - Insert Perfume",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Read Sheet - Home of Humans": {
-      "main": [
-        [
-          {
-            "node": "Gabungkan Teks - Home",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Gabungkan Teks - Parfum": {
-      "main": [
-        [
-          {
-            "node": "Qdrant - Insert Parfum",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Gabungkan Teks - Home": {
+    "Build Document - Home": {
       "main": [
         [
           {
@@ -362,18 +530,18 @@
         ]
       ]
     },
-    "Embeddings Gemini - Parfum": {
+    "Gemini Embeddings - Perfume": {
       "ai_embedding": [
         [
           {
-            "node": "Qdrant - Insert Parfum",
+            "node": "Qdrant - Insert Perfume",
             "type": "ai_embedding",
             "index": 0
           }
         ]
       ]
     },
-    "Embeddings Gemini - Home": {
+    "Gemini Embeddings - Home": {
       "ai_embedding": [
         [
           {
@@ -384,11 +552,11 @@
         ]
       ]
     },
-    "Document Loader - Parfum": {
+    "Document Loader - Perfume": {
       "ai_document": [
         [
           {
-            "node": "Qdrant - Insert Parfum",
+            "node": "Qdrant - Insert Perfume",
             "type": "ai_document",
             "index": 0
           }
@@ -406,23 +574,144 @@
         ]
       ]
     },
-    "Recursive Character Text Splitter": {
+    "Text Splitter - Perfume": {
       "ai_textSplitter": [
         [
           {
-            "node": "Document Loader - Parfum",
+            "node": "Document Loader - Perfume",
             "type": "ai_textSplitter",
             "index": 0
           }
         ]
       ]
     },
-    "Recursive Character Text Splitter1": {
+    "Text Splitter - Home": {
       "ai_textSplitter": [
         [
           {
             "node": "Document Loader - Home",
             "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule - Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Read Sheet - Perfume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Called by Admin Console": {
+      "main": [
+        [
+          {
+            "node": "Read Sheet - Perfume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sheet - Home of Humans": {
+      "main": [
+        [
+          {
+            "node": "Detect Catalog Changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Catalog Changes": {
+      "main": [
+        [
+          {
+            "node": "Prepare Product Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Product Rows": {
+      "main": [
+        [
+          {
+            "node": "Upsert Products Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Products Table": {
+      "main": [
+        [
+          {
+            "node": "Build Document - Perfume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant - Insert Perfume": {
+      "main": [
+        [
+          {
+            "node": "Build Document - Home",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant - Insert Home": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Version - Perfume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Version - Perfume": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Version - Home",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Version - Home": {
+      "main": [
+        [
+          {
+            "node": "Save Sync State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Sync State": {
+      "main": [
+        [
+          {
+            "node": "Discord - Report Sync",
+            "type": "main",
             "index": 0
           }
         ]
